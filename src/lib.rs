@@ -1,10 +1,12 @@
 mod blocked;
 pub use blocked::Blocked;
+mod adaptive;
 mod map;
 pub mod prelude;
 mod range;
 mod sequential;
 mod slice;
+pub(crate) mod small_channel;
 pub(crate) mod traits;
 // TODO: change crate name
 

@@ -1,3 +1,4 @@
+use crate::adaptive::Adaptive;
 use crate::map::Map;
 use crate::sequential::Sequential;
 
@@ -49,6 +50,11 @@ pub trait ParallelIterator: Sized {
     /// Must be called just before the final reduction.
     fn sequential(self) -> Sequential<Self> {
         Sequential { base: self }
+    }
+    /// Turn back an adaptive reducer.
+    /// Must be called just before the final reduction.
+    fn adaptive(self) -> Adaptive<Self> {
+        Adaptive { base: self }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where

@@ -1,4 +1,5 @@
 //! Sequential iterator you can eat by blocks if you try_fold.
+use crate::prelude::*;
 
 /// Sequential iterator you can eat in several bites.
 /// It's like slow food but for programmers.
@@ -22,6 +23,19 @@ where
     }
 }
 
+impl<I> Producer for Blocked<I>
+where
+    I: Producer,
+{
+    fn should_be_divided(&self) -> bool {
+        self.base.should_be_divided()
+    }
+    fn divide(self) -> (Self, Self) {
+        let (left, right) = self.base.divide();
+        (Blocked::new(left), Blocked::new(right))
+    }
+}
+
 impl<I> Blocked<I>
 where
     I: Iterator,
@@ -32,6 +46,9 @@ where
             base: iterator,
             limit: 0,
         }
+    }
+    pub fn inner_size_hint(&self) -> (usize, Option<usize>) {
+        self.base.size_hint()
     }
     /// Set current's block size.
     pub fn set_block_size(&mut self, block_size: usize) {
