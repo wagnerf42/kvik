@@ -1,6 +1,7 @@
 mod map;
 pub mod prelude;
 mod range;
+mod sequential;
 mod slice;
 pub(crate) mod traits;
 

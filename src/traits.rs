@@ -1,4 +1,6 @@
 use crate::map::Map;
+use crate::sequential::Sequential;
+
 pub trait ProducerCallback<T> {
     type Output;
 
@@ -43,6 +45,11 @@ where
 //TODO: power ?
 pub trait ParallelIterator: Sized {
     type Item: Send;
+    /// Turn back into a sequential iterator.
+    /// Must be called just before the final reduction.
+    fn sequential(self) -> Sequential<Self> {
+        Sequential { base: self }
+    }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
         F: Fn(Self::Item) -> R + Send + Sync,
