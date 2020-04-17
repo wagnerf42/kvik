@@ -1,18 +1,18 @@
 use crate::prelude::*;
 
-pub struct ParRange {
+pub struct Iter {
     range: std::ops::Range<u64>,
 }
 
 impl IntoParallelIterator for std::ops::Range<u64> {
     type Item = u64;
-    type Iter = ParRange;
+    type Iter = Iter;
     fn into_par_iter(self) -> Self::Iter {
-        ParRange { range: self }
+        Iter { range: self }
     }
 }
 
-impl ParallelIterator for ParRange {
+impl ParallelIterator for Iter {
     type Item = u64;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
