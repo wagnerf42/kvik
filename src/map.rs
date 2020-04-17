@@ -7,6 +7,7 @@ pub struct Map<I, F> {
 
 impl<R, I, F> ParallelIterator for Map<I, F>
 where
+    R: Send,
     I: ParallelIterator,
     F: Fn(I::Item) -> R + Sync,
 {
@@ -29,7 +30,7 @@ where
             F: Fn(T) -> R + Sync,
         {
             type Output = CB::Output;
-            fn call<P>(self, base: P) -> CB::Output
+            fn call<P>(&self, base: P) -> CB::Output
             where
                 P: Producer<Item = T>,
             {
@@ -61,6 +62,9 @@ where
     I: Producer,
     F: Fn(I::Item) -> R + Sync,
 {
+    fn should_be_divided(&self) -> bool {
+        self.base.should_be_divided()
+    }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (

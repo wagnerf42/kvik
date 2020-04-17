@@ -23,6 +23,9 @@ impl ParallelIterator for ParRange {
 }
 
 impl Producer for std::ops::Range<u64> {
+    fn should_be_divided(&self) -> bool {
+        (self.end - self.start) >= 2
+    }
     fn divide(self) -> (Self, Self) {
         let mid = (self.start + self.end) / 2;
         (self.start..mid, mid..self.end)

@@ -1,15 +1,9 @@
 use crate::map::Map;
 pub trait ProducerCallback<T> {
-    /// The type of value returned by this callback. Analogous to
-    /// [`Output` from the `FnOnce` trait][Output].
-    ///
-    /// [Output]: https://doc.rust-lang.org/std/ops/trait.FnOnce.html#associatedtype.Output
     type Output;
 
-    /// Invokes the callback with the given producer as argument. The
-    /// key point of this trait is that this method is generic over
-    /// `P`, and hence implementors must be defined for any producer.
-    fn call<P>(self, producer: P) -> Self::Output
+    // TODO: what if we don't borrow self ?
+    fn call<P>(&self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>;
 }
@@ -17,6 +11,7 @@ pub trait ProducerCallback<T> {
 pub trait Producer: Send + Sized + Iterator {
     // TODO: think about the index
     fn divide(self) -> (Self, Self);
+    fn should_be_divided(&self) -> bool;
 }
 
 struct ReduceCallback<'f, OP, ID> {
@@ -26,21 +21,28 @@ struct ReduceCallback<'f, OP, ID> {
 
 impl<'f, T, OP, ID> ProducerCallback<T> for ReduceCallback<'f, OP, ID>
 where
+    T: Send,
     OP: Fn(T, T) -> T + Sync + Send,
     ID: Fn() -> T + Send + Sync,
 {
     type Output = T;
-    fn call<P>(self, producer: P) -> Self::Output
+    fn call<P>(&self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>,
     {
-        producer.fold((self.identity)(), self.op)
+        if producer.should_be_divided() {
+            let (left, right) = producer.divide();
+            let (left_r, right_r) = rayon::join(|| self.call(left), || self.call(right));
+            (self.op)(left_r, right_r)
+        } else {
+            producer.fold((self.identity)(), self.op)
+        }
     }
 }
 
 //TODO: power ?
 pub trait ParallelIterator: Sized {
-    type Item;
+    type Item: Send;
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
         F: Fn(Self::Item) -> R + Send + Sync,
@@ -64,7 +66,7 @@ pub trait ParallelIterator: Sized {
 }
 
 pub trait IntoParallelIterator {
-    type Item;
+    type Item: Send;
     type Iter: ParallelIterator<Item = Self::Item>;
     fn into_par_iter(self) -> Self::Iter;
 }
