@@ -52,6 +52,9 @@ where
     F: Fn(I::Item) -> R,
 {
     type Item = R;
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.base.size_hint()
+    }
     fn next(&mut self) -> Option<Self::Item> {
         self.base.next().map(self.op)
     }

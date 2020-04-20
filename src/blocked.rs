@@ -47,6 +47,9 @@ where
             limit: 0,
         }
     }
+    pub fn inner(self) -> I {
+        self.base
+    }
     pub fn inner_size_hint(&self) -> (usize, Option<usize>) {
         self.base.size_hint()
     }
