@@ -57,6 +57,12 @@ pub trait ParallelIterator: Sized {
     fn adaptive(self) -> Adaptive<Self> {
         Adaptive { base: self }
     }
+    fn for_each<OP>(self, op: OP)
+    where
+        OP: Fn(Self::Item) + Sync + Send,
+    {
+        self.map(op).reduce(|| (), |_, _| ())
+    }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
         F: Fn(Self::Item) -> R + Send + Sync,
