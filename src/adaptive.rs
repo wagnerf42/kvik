@@ -44,6 +44,7 @@ where
     }
 }
 
+//TODO: should we really pass the reduce refs by refs ?
 fn adaptive_scheduler<'f, T, OP, ID, P>(
     reducer: &ReduceCallback<'f, OP, ID>,
     producer: P,
@@ -127,4 +128,89 @@ where
     {
         self.base.with_producer(callback)
     }
+}
+
+struct Worker<'f, S, C, D, W> {
+    state: S,
+    completed: &'f C,
+    divide: &'f D,
+    work: &'f W,
+}
+
+impl<'f, S, C, D, W> Iterator for Worker<'f, S, C, D, W> {
+    type Item = ();
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(())
+    }
+}
+
+impl<'f, S, C, D, W> Producer for Worker<'f, S, C, D, W>
+where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+{
+    fn should_be_divided(&self) -> bool {
+        !(self.completed)(&self.state)
+    }
+    fn divide(self) -> (Self, Self) {
+        let (left, right) = (self.divide)(self.state);
+        (
+            Worker {
+                state: left,
+                completed: self.completed,
+                divide: self.divide,
+                work: self.work,
+            },
+            Worker {
+                state: right,
+                completed: self.completed,
+                divide: self.divide,
+                work: self.work,
+            },
+        )
+    }
+}
+
+impl<'f, S, C, D, W> AdaptiveProducer for Worker<'f, S, C, D, W>
+where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+{
+    fn completed(&self) -> bool {
+        (self.completed)(&self.state)
+    }
+    fn partial_fold<B, F>(&mut self, init: B, _fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        (self.work)(&mut self.state, limit);
+        init
+    }
+}
+
+fn work<S, C, D, W>(init: S, completed: C, divide: D, work: W)
+where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+{
+    let worker = Worker {
+        state: init,
+        completed: &completed,
+        divide: &divide,
+        work: &work,
+    };
+    let identity = || ();
+    let op = |_, _| ();
+    let reducer = ReduceCallback {
+        op: &op,
+        identity: &identity,
+    };
+    adaptive_scheduler(&reducer, worker, ());
 }

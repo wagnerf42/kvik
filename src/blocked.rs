@@ -60,17 +60,6 @@ impl<I: Producer> AdaptiveProducer for Blocked<I> {
     fn completed(&self) -> bool {
         self.base.size_hint().1 == Some(0)
     }
-    /// Fold one block.
-    /// You can still use the iterator afterwards.
-    ///
-    /// # Example
-    /// ```
-    /// use rayon_try_fold::Blocked;
-    /// let mut i = Blocked::new(0..10);
-    /// assert_eq!(0+1+2+3, i.partial_fold(0, |a, b| a+b, 4));
-    /// assert_eq!(4+5+6, i.partial_fold(0, |a, b| a+b, 3));
-    /// assert_eq!(7+8+9, i.partial_fold(0, |a, b| a+b, 8));
-    /// ```
     fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
     where
         F: Fn(B, I::Item) -> B,
