@@ -4,6 +4,14 @@ use crate::prelude::*;
 use crate::small_channel::small_channel;
 use crate::Blocked;
 
+pub(crate) trait AdaptiveProducer: Producer {
+    fn completed(&self) -> bool;
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B;
+}
+
 fn block_sizes() -> impl Iterator<Item = usize> {
     // TODO: cap
     std::iter::successors(Some(1), |old| Some(2 * old))
@@ -38,14 +46,14 @@ where
 
 fn adaptive_scheduler<'f, T, OP, ID, P>(
     reducer: &ReduceCallback<'f, OP, ID>,
-    producer: Blocked<P>,
+    producer: P,
     output: T,
 ) -> T
 where
     T: Send,
     OP: Fn(T, T) -> T + Sync + Send,
     ID: Fn() -> T + Send + Sync,
-    P: Producer<Item = T>,
+    P: AdaptiveProducer<Item = T>,
 {
     let (sender, receiver) = small_channel();
     let (left_result, maybe_right_result): (T, Option<T>) = rayon::join_context(
@@ -53,11 +61,10 @@ where
             .take_while(|_| !sender.receiver_is_waiting())
             .try_fold((producer, output), |(mut producer, output), s| {
                 //TODO: is this the right way to test for the end ?
-                if producer.inner_size_hint().1 == Some(0) {
+                if producer.completed() {
                     Err(output)
                 } else {
-                    producer.set_block_size(s);
-                    let new_output = producer.partial_fold(output, reducer.op);
+                    let new_output = producer.partial_fold(output, reducer.op, s);
                     Ok((producer, new_output))
                 }
             }) {
@@ -69,7 +76,7 @@ where
                     adaptive_scheduler(reducer, my_half, output)
                 } else {
                     sender.send(None);
-                    remaining_producer.inner().fold(output, reducer.op)
+                    remaining_producer.fold(output, reducer.op)
                 }
             }
             Err(output) => {
