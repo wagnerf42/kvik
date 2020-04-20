@@ -1,6 +1,7 @@
 use crate::adaptive::Adaptive;
 use crate::map::Map;
 use crate::sequential::Sequential;
+use std::iter::Sum;
 
 pub trait ProducerCallback<T> {
     type Output;
@@ -82,4 +83,28 @@ pub trait IntoParallelIterator {
     type Item: Send;
     type Iter: ParallelIterator<Item = Self::Item>;
     fn into_par_iter(self) -> Self::Iter;
+}
+
+pub trait IntoParallelRefIterator<'data> {
+    /// The type of the parallel iterator that will be returned.
+    type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that the parallel iterator will produce.
+    /// This will typically be an `&'data T` reference type.
+    type Item: Send + 'data;
+
+    /// Converts `self` into a parallel iterator.
+    fn par_iter(&'data self) -> Self::Iter;
+}
+
+impl<'data, I: 'data + ?Sized> IntoParallelRefIterator<'data> for I
+where
+    &'data I: IntoParallelIterator,
+{
+    type Iter = <&'data I as IntoParallelIterator>::Iter;
+    type Item = <&'data I as IntoParallelIterator>::Item;
+
+    fn par_iter(&'data self) -> Self::Iter {
+        self.into_par_iter()
+    }
 }
