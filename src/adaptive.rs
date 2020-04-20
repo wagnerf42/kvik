@@ -193,7 +193,7 @@ where
     }
 }
 
-fn work<S, C, D, W>(init: S, completed: C, divide: D, work: W)
+pub fn work<S, C, D, W>(init: S, completed: C, divide: D, work: W)
 where
     S: Send,
     C: Fn(&S) -> bool + Sync,
