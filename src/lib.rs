@@ -5,6 +5,8 @@ mod blocked;
 pub use blocked::Blocked;
 mod adaptive;
 pub use adaptive::work;
+mod algorithms;
+pub use algorithms::manual_merge::adaptive_slice_merge;
 mod map;
 pub mod prelude;
 mod range;
@@ -12,6 +14,7 @@ mod sequential;
 mod slice;
 pub(crate) mod small_channel;
 pub(crate) mod traits;
+pub mod utils;
 // TODO: change crate name
 
 #[cfg(test)]
