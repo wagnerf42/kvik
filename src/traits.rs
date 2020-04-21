@@ -1,7 +1,6 @@
 use crate::adaptive::Adaptive;
 use crate::map::Map;
 use crate::sequential::Sequential;
-use std::iter::Sum;
 
 pub trait ProducerCallback<T> {
     type Output;
