@@ -111,6 +111,9 @@ where
 {
     type Item = I::Item;
     //TODO: why isnt this the default function ?
+    //ANSWER: Maybe you could add an associated type ReduceCallback which has to implement
+    //ProducerCallback, and then use this type in the default implementation of the reduce?
+    //Oh, you can't because there is no default associated type
     fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
@@ -130,29 +133,41 @@ where
     }
 }
 
-struct Worker<'f, S, C, D, W> {
+struct Worker<'f, S, C, D, W, SD> {
     state: S,
     completed: &'f C,
     divide: &'f D,
+    should_divide: &'f SD,
     work: &'f W,
 }
 
-impl<'f, S, C, D, W> Iterator for Worker<'f, S, C, D, W> {
+impl<'f, S, C, D, W, SD> Iterator for Worker<'f, S, C, D, W, SD>
+where
+    W: Fn(&mut S, usize) + Sync,
+    C: Fn(&S) -> bool + Sync,
+{
     type Item = ();
     fn next(&mut self) -> Option<Self::Item> {
-        Some(())
+        // I think this guy should finish off all the work in the worker.
+        // This is because the should be divided may return false even if completed is false.
+        // In this case, we finish off sequentially, whatever is left.
+        if !(*self.completed)(&self.state) {
+            (self.work)(&mut self.state, std::usize::MAX);
+        }
+        None
     }
 }
 
-impl<'f, S, C, D, W> Producer for Worker<'f, S, C, D, W>
+impl<'f, S, C, D, W, SD> Producer for Worker<'f, S, C, D, W, SD>
 where
     S: Send,
     C: Fn(&S) -> bool + Sync,
     D: Fn(S) -> (S, S) + Sync,
     W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
 {
     fn should_be_divided(&self) -> bool {
-        !(self.completed)(&self.state)
+        (self.should_divide)(&self.state)
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = (self.divide)(self.state);
@@ -161,11 +176,13 @@ where
                 state: left,
                 completed: self.completed,
                 divide: self.divide,
+                should_divide: self.should_divide,
                 work: self.work,
             },
             Worker {
                 state: right,
                 completed: self.completed,
+                should_divide: self.should_divide,
                 divide: self.divide,
                 work: self.work,
             },
@@ -173,12 +190,13 @@ where
     }
 }
 
-impl<'f, S, C, D, W> AdaptiveProducer for Worker<'f, S, C, D, W>
+impl<'f, S, C, D, W, SD> AdaptiveProducer for Worker<'f, S, C, D, W, SD>
 where
     S: Send,
     C: Fn(&S) -> bool + Sync,
     D: Fn(S) -> (S, S) + Sync,
     W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
 {
     fn completed(&self) -> bool {
         (self.completed)(&self.state)
@@ -193,18 +211,20 @@ where
     }
 }
 
-pub fn work<S, C, D, W>(init: S, completed: C, divide: D, work: W)
+pub fn work<S, C, D, W, SD>(init: S, completed: C, divide: D, work: W, should_be_divided: SD)
 where
     S: Send,
     C: Fn(&S) -> bool + Sync,
     D: Fn(S) -> (S, S) + Sync,
     W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
 {
     let worker = Worker {
         state: init,
         completed: &completed,
         divide: &divide,
         work: &work,
+        should_divide: &should_be_divided,
     };
     let identity = || ();
     let op = |_, _| ();
