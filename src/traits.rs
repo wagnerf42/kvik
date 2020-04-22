@@ -1,4 +1,5 @@
 use crate::adaptive::Adaptive;
+use crate::even_levels::EvenLevels;
 use crate::map::Map;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
@@ -113,12 +114,36 @@ pub trait ParallelIterator: Sized {
     {
         self.map(op).reduce(|| (), |_, _| ())
     }
+    fn even_levels(self) -> EvenLevels<Self> {
+        EvenLevels { base: self }
+    }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
         F: Fn(Self::Item) -> R + Send + Sync,
     {
         Map { base: self, op }
     }
+
+    fn reduce_with<OP>(self, op: OP) -> Option<Self::Item>
+    where
+        OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
+    {
+        self.map(|i| Some(i)).reduce(
+            || None,
+            |o1, o2| {
+                if let Some(r1) = o1 {
+                    if let Some(r2) = o2 {
+                        Some(op(r1, r2))
+                    } else {
+                        Some(r1)
+                    }
+                } else {
+                    o2
+                }
+            },
+        )
+    }
+
     fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
