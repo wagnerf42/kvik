@@ -2,6 +2,7 @@ use crate::adaptive::Adaptive;
 use crate::map::Map;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
+use crate::wrap::Wrap;
 
 // these are all our types of power
 pub struct Basic;
@@ -12,6 +13,18 @@ pub trait Divisible: Sized {
     fn should_be_divided(&self) -> bool;
     fn divide(self) -> (Self, Self);
     fn divide_at(self, index: usize) -> (Self, Self);
+    /// Cut divisible recursively into smaller pieces forming a ParallelIterator.
+    /// # Example:
+    /// ```
+    /// use rayon_try_fold::prelude::*;
+    /// let r = (0u64..10);
+    /// //TODO : write sum and all parallel ranges (to get .len)
+    /// let length = r.wrap_iter().map(|p| p.end-p.start).reduce(||0, |a,b|a+b);
+    /// assert_eq!(length, 10)
+    /// ```
+    fn wrap_iter(self) -> Wrap<Self> {
+        Wrap { content: self }
+    }
 }
 
 impl<A, B> Divisible for (A, B)
