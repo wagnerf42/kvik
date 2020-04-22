@@ -44,13 +44,17 @@ impl<'a, T: 'a> Iterator for IterProducer<'a, T> {
     }
 }
 
-impl<'a, T: 'a + Sync> Producer for IterProducer<'a, T> {
+impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
+    type Power = Indexed;
     fn should_be_divided(&self) -> bool {
         self.slice.len() - self.index >= 2
     }
     fn divide(self) -> (Self, Self) {
         let mid = (self.slice.len() - self.index) / 2;
-        let (left, right) = self.slice[self.index..].split_at(mid);
+        self.divide_at(mid)
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.slice[self.index..].split_at(index);
         (
             IterProducer {
                 slice: left,

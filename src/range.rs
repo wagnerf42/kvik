@@ -22,12 +22,17 @@ impl ParallelIterator for Iter {
     }
 }
 
-impl Producer for std::ops::Range<u64> {
+impl Divisible for std::ops::Range<u64> {
+    type Power = Indexed;
     fn should_be_divided(&self) -> bool {
         (self.end - self.start) >= 2
     }
     fn divide(self) -> (Self, Self) {
-        let mid = (self.start + self.end) / 2;
+        let index = (self.end - self.start) / 2;
+        self.divide_at(index as usize)
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let mid = self.start + (index as u64);
         (self.start..mid, mid..self.end)
     }
 }

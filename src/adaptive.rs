@@ -158,7 +158,7 @@ where
     }
 }
 
-impl<'f, S, C, D, W, SD> Producer for Worker<'f, S, C, D, W, SD>
+impl<'f, S, C, D, W, SD> Divisible for Worker<'f, S, C, D, W, SD>
 where
     S: Send,
     C: Fn(&S) -> bool + Sync,
@@ -166,6 +166,7 @@ where
     W: Fn(&mut S, usize) + Sync,
     SD: Fn(&S) -> bool + Sync,
 {
+    type Power = Basic;
     fn should_be_divided(&self) -> bool {
         (self.should_divide)(&self.state)
     }
@@ -187,6 +188,9 @@ where
                 work: self.work,
             },
         )
+    }
+    fn divide_at(self, _index: usize) -> (Self, Self) {
+        panic!("should never be called")
     }
 }
 

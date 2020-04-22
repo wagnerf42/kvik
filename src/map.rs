@@ -60,16 +60,30 @@ where
     }
 }
 
-impl<'f, R, I, F> Producer for MapProducer<'f, I, F>
+impl<'f, R, I, F> Divisible for MapProducer<'f, I, F>
 where
     I: Producer,
     F: Fn(I::Item) -> R + Sync,
 {
+    type Power = I::Power;
     fn should_be_divided(&self) -> bool {
         self.base.should_be_divided()
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
+        (
+            MapProducer {
+                base: left,
+                op: self.op,
+            },
+            MapProducer {
+                base: right,
+                op: self.op,
+            },
+        )
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.divide_at(index);
         (
             MapProducer {
                 base: left,

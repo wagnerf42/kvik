@@ -10,6 +10,7 @@ pub use algorithms::manual_merge::adaptive_slice_merge;
 mod map;
 pub mod prelude;
 mod range;
+mod rayon_policy;
 mod sequential;
 mod slice;
 pub(crate) mod small_channel;

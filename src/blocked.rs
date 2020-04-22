@@ -30,15 +30,20 @@ where
     }
 }
 
-impl<I> Producer for Blocked<I>
+impl<I> Divisible for Blocked<I>
 where
     I: Producer,
 {
+    type Power = I::Power;
     fn should_be_divided(&self) -> bool {
         self.base.should_be_divided()
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
+        (Blocked::new(left), Blocked::new(right))
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.divide_at(index);
         (Blocked::new(left), Blocked::new(right))
     }
 }

@@ -1,6 +1,39 @@
 use crate::adaptive::Adaptive;
 use crate::map::Map;
+use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
+
+// these are all our types of power
+pub struct Basic;
+pub struct Indexed;
+
+pub trait Divisible: Sized {
+    type Power;
+    fn should_be_divided(&self) -> bool;
+    fn divide(self) -> (Self, Self);
+    fn divide_at(self, index: usize) -> (Self, Self);
+}
+
+impl<A, B> Divisible for (A, B)
+where
+    A: Divisible,
+    B: Divisible,
+{
+    type Power = A::Power; // TODO: take min
+    fn should_be_divided(&self) -> bool {
+        self.0.should_be_divided() || self.1.should_be_divided()
+    }
+    fn divide(self) -> (Self, Self) {
+        let (left_a, right_a) = self.0.divide();
+        let (left_b, right_b) = self.1.divide();
+        ((left_a, left_b), (right_a, right_b))
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let (left_a, right_a) = self.0.divide_at(index);
+        let (left_b, right_b) = self.1.divide_at(index);
+        ((left_a, left_b), (right_a, right_b))
+    }
+}
 
 pub trait ProducerCallback<T> {
     type Output;
@@ -11,11 +44,9 @@ pub trait ProducerCallback<T> {
         P: Producer<Item = T>;
 }
 
-pub trait Producer: Send + Sized + Iterator {
-    // TODO: think about the index
-    fn divide(self) -> (Self, Self);
-    fn should_be_divided(&self) -> bool;
-}
+pub trait Producer: Send + Iterator + Divisible {}
+
+impl<P> Producer for P where P: Send + Iterator + Divisible {}
 
 struct ReduceCallback<'f, OP, ID> {
     op: &'f OP,
@@ -46,6 +77,13 @@ where
 //TODO: power ?
 pub trait ParallelIterator: Sized {
     type Item: Send;
+    /// Use rayon's steals reducing scheduling policy.
+    fn rayon(self, limit: usize) -> Rayon<Self> {
+        Rayon {
+            base: self,
+            reset_counter: limit,
+        }
+    }
     /// Turn back into a sequential iterator.
     /// Must be called just before the final reduction.
     fn sequential(self) -> Sequential<Self> {
