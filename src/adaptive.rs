@@ -148,13 +148,14 @@ where
 {
     type Item = ();
     fn next(&mut self) -> Option<Self::Item> {
-        // I think this guy should finish off all the work in the worker.
-        // This is because the should be divided may return false even if completed is false.
-        // In this case, we finish off sequentially, whatever is left.
-        if !(*self.completed)(&self.state) {
-            (self.work)(&mut self.state, std::usize::MAX);
-        }
         None
+    }
+    fn fold<B, F>(mut self, init: B, _f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        (self.work)(&mut self.state, std::usize::MAX);
+        init
     }
 }
 
