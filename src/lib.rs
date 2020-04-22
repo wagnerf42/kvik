@@ -2,6 +2,7 @@
 extern crate rayon_logs as rayon;
 
 mod blocked;
+mod join_policy;
 pub use blocked::Blocked;
 mod adaptive;
 pub use adaptive::work;
@@ -68,5 +69,17 @@ mod tests {
                     }
                 },
             );
+    }
+    #[test]
+    fn join_policy_test() {
+        const JP_SIZE: usize = 10;
+        (0u64..1000u64)
+            .wrap_iter()
+            .map(|chunk| {
+                assert!(chunk.end - chunk.start >= JP_SIZE as u64);
+                chunk
+            })
+            .join_policy(JP_SIZE)
+            .reduce(|| (0..1), |left, _| left);
     }
 }

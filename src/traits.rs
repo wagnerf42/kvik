@@ -1,5 +1,6 @@
 use crate::adaptive::Adaptive;
 use crate::even_levels::EvenLevels;
+use crate::join_policy::JoinPolicy;
 use crate::map::Map;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
@@ -116,6 +117,9 @@ pub trait ParallelIterator: Sized {
     }
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }
+    }
+    fn join_policy(self, limit: usize) -> JoinPolicy<Self> {
+        JoinPolicy { base: self, limit }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
