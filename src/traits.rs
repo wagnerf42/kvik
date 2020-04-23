@@ -221,7 +221,7 @@ pub trait PreviewableParallelIterator: ParallelIterator {
         I: PreviewableParallelIterator<Item = Self::Item>,
         Self::Item: Ord,
     {
-        unimplemented!()
+        Merge { a: self, b: other }
     }
 }
 
