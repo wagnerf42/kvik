@@ -103,7 +103,7 @@ where
     fn divide(self) -> (Self, Self) {
         unimplemented!()
     }
-    fn divide_at(self, index: usize) -> (Self, Self) {
+    fn divide_at(self, _index: usize) -> (Self, Self) {
         panic!("you cannot divide_at a merge")
     }
 }
