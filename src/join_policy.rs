@@ -18,9 +18,9 @@ where
 
 impl<I> Divisible for JoinPolicyProducer<I>
 where
-    I: Divisible + Iterator,
+    I: Producer,
 {
-    type Power = <I as Divisible>::Power;
+    type Controlled = <I as Divisible>::Controlled;
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
@@ -48,7 +48,7 @@ where
         )
     }
     fn should_be_divided(&self) -> bool {
-        self.base.should_be_divided() && self.base.size_hint().0 > self.limit
+        self.base.sizes().1.map(|b| b > self.limit).unwrap_or(true) && self.base.should_be_divided()
     }
 }
 
@@ -58,6 +58,8 @@ pub struct JoinPolicy<I> {
 }
 
 impl<I: ParallelIterator> ParallelIterator for JoinPolicy<I> {
+    type Controlled = I::Controlled;
+    type Enumerable = I::Enumerable;
     type Item = I::Item;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
@@ -72,7 +74,7 @@ impl<I: ParallelIterator> ParallelIterator for JoinPolicy<I> {
             CB: ProducerCallback<T>,
         {
             type Output = CB::Output;
-            fn call<P>(&self, producer: P) -> Self::Output
+            fn call<P>(self, producer: P) -> Self::Output
             where
                 P: Producer<Item = T>,
             {

@@ -12,6 +12,8 @@ where
     F: Fn(I::Item) -> R + Sync,
 {
     type Item = R;
+    type Controlled = I::Controlled;
+    type Enumerable = I::Enumerable;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -30,7 +32,7 @@ where
             F: Fn(T) -> R + Sync,
         {
             type Output = CB::Output;
-            fn call<P>(&self, base: P) -> CB::Output
+            fn call<P>(self, base: P) -> CB::Output
             where
                 P: Producer<Item = T>,
             {
@@ -65,7 +67,7 @@ where
     I: Producer,
     F: Fn(I::Item) -> R + Sync,
 {
-    type Power = I::Power;
+    type Controlled = I::Controlled;
     fn should_be_divided(&self) -> bool {
         self.base.should_be_divided()
     }

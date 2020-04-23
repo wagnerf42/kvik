@@ -5,13 +5,20 @@ use crate::map::Map;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
 use crate::wrap::Wrap;
+use crate::zip::Zip;
 
-// these are all our types of power
-pub struct Basic;
-pub struct Indexed;
+// Iterators have different properties
+// which allow for specialisation of some algorithms.
+//
+// We need to know :
+// - can you control around where you cut ?
+// - do you exactly know the number of elements yielded ?
+// We use marker types to associate each information to each iterator.
+pub struct True;
+pub struct False;
 
 pub trait Divisible: Sized {
-    type Power;
+    type Controlled;
     fn should_be_divided(&self) -> bool;
     fn divide(self) -> (Self, Self);
     fn divide_at(self, index: usize) -> (Self, Self);
@@ -34,7 +41,7 @@ where
     A: Divisible,
     B: Divisible,
 {
-    type Power = A::Power; // TODO: take min
+    type Controlled = A::Controlled; // TODO: take min
     fn should_be_divided(&self) -> bool {
         self.0.should_be_divided() || self.1.should_be_divided()
     }
@@ -52,20 +59,51 @@ where
 
 pub trait ProducerCallback<T> {
     type Output;
-
-    // TODO: what if we don't borrow self ?
-    fn call<P>(&self, producer: P) -> Self::Output
+    fn call<P>(self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>;
 }
 
-pub trait Producer: Send + Iterator + Divisible {}
+pub trait Producer: Send + Iterator + Divisible {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.size_hint()
+    }
+    //TODO: this should only be called on left hand sides of infinite iterators
+    fn length(&self) -> usize {
+        let (min, max) = self.sizes();
+        if let Some(m) = max {
+            assert_eq!(m, min);
+            min
+        } else {
+            panic!("we are not enumerable")
+        }
+    }
+}
 
 impl<P> Producer for P where P: Send + Iterator + Divisible {}
 
 struct ReduceCallback<'f, OP, ID> {
     op: &'f OP,
     identity: &'f ID,
+}
+
+fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<'f, OP, ID>) -> T
+where
+    P: Producer<Item = T>,
+    T: Send,
+    OP: Fn(T, T) -> T + Sync + Send,
+    ID: Fn() -> T + Send + Sync,
+{
+    if producer.should_be_divided() {
+        let (left, right) = producer.divide();
+        let (left_r, right_r) = rayon::join(
+            || schedule_join(left, reducer),
+            || schedule_join(right, reducer),
+        );
+        (reducer.op)(left_r, right_r)
+    } else {
+        producer.fold((reducer.identity)(), reducer.op)
+    }
 }
 
 impl<'f, T, OP, ID> ProducerCallback<T> for ReduceCallback<'f, OP, ID>
@@ -75,23 +113,18 @@ where
     ID: Fn() -> T + Send + Sync,
 {
     type Output = T;
-    fn call<P>(&self, producer: P) -> Self::Output
+    fn call<P>(self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>,
     {
-        if producer.should_be_divided() {
-            let (left, right) = producer.divide();
-            let (left_r, right_r) = rayon::join(|| self.call(left), || self.call(right));
-            (self.op)(left_r, right_r)
-        } else {
-            producer.fold((self.identity)(), self.op)
-        }
+        schedule_join(producer, &self)
     }
 }
 
-//TODO: power ?
 pub trait ParallelIterator: Sized {
     type Item: Send;
+    type Controlled;
+    type Enumerable;
     /// Use rayon's steals reducing scheduling policy.
     fn rayon(self, limit: usize) -> Rayon<Self> {
         Rayon {
@@ -163,6 +196,17 @@ pub trait ParallelIterator: Sized {
     where
         CB: ProducerCallback<Self::Item>;
 }
+
+pub trait EnumerableParallelIterator: ParallelIterator {
+    fn zip<I>(self, other: I) -> Zip<Self, I>
+    where
+        I: ParallelIterator<Controlled = True, Enumerable = True>,
+    {
+        Zip { a: self, b: other }
+    }
+}
+
+impl<I> EnumerableParallelIterator for I where I: ParallelIterator<Enumerable = True> {}
 
 pub trait IntoParallelIterator {
     type Item: Send;

@@ -14,6 +14,8 @@ impl IntoParallelIterator for std::ops::Range<u64> {
 
 impl ParallelIterator for Iter {
     type Item = u64;
+    type Controlled = True;
+    type Enumerable = True;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -23,7 +25,7 @@ impl ParallelIterator for Iter {
 }
 
 impl Divisible for std::ops::Range<u64> {
-    type Power = Indexed;
+    type Controlled = True;
     fn should_be_divided(&self) -> bool {
         (self.end - self.start) >= 2
     }

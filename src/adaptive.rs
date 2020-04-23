@@ -34,13 +34,13 @@ where
     ID: Fn() -> T + Send + Sync,
 {
     type Output = T;
-    fn call<P>(&self, producer: P) -> Self::Output
+    fn call<P>(self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>,
     {
         let blocked_producer = Blocked::new(producer);
         let output = (self.identity)();
-        adaptive_scheduler(self, blocked_producer, output)
+        adaptive_scheduler(&self, blocked_producer, output)
     }
 }
 
@@ -109,6 +109,8 @@ impl<I> ParallelIterator for Adaptive<I>
 where
     I: ParallelIterator,
 {
+    type Controlled = I::Controlled;
+    type Enumerable = I::Enumerable;
     type Item = I::Item;
     //TODO: why isnt this the default function ?
     //ANSWER: Maybe you could add an associated type ReduceCallback which has to implement
@@ -167,7 +169,7 @@ where
     W: Fn(&mut S, usize) + Sync,
     SD: Fn(&S) -> bool + Sync,
 {
-    type Power = Basic;
+    type Controlled = False;
     fn should_be_divided(&self) -> bool {
         (self.should_divide)(&self.state)
     }

@@ -34,7 +34,7 @@ impl<I> Divisible for Blocked<I>
 where
     I: Producer,
 {
-    type Power = I::Power;
+    type Controlled = I::Controlled;
     fn should_be_divided(&self) -> bool {
         self.base.should_be_divided()
     }

@@ -19,6 +19,7 @@ pub(crate) mod small_channel;
 pub(crate) mod traits;
 pub mod utils;
 mod wrap;
+mod zip;
 // TODO: change crate name
 
 #[cfg(test)]

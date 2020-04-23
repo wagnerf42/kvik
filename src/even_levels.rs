@@ -19,7 +19,7 @@ impl<I> Divisible for EvenLevelsProducer<I>
 where
     I: Divisible,
 {
-    type Power = <I as Divisible>::Power;
+    type Controlled = <I as Divisible>::Controlled;
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
@@ -57,6 +57,8 @@ pub struct EvenLevels<I> {
 
 impl<I: ParallelIterator> ParallelIterator for EvenLevels<I> {
     type Item = I::Item;
+    type Controlled = I::Controlled;
+    type Enumerable = I::Enumerable;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -69,7 +71,7 @@ impl<I: ParallelIterator> ParallelIterator for EvenLevels<I> {
             CB: ProducerCallback<T>,
         {
             type Output = CB::Output;
-            fn call<P>(&self, producer: P) -> Self::Output
+            fn call<P>(self, producer: P) -> Self::Output
             where
                 P: Producer<Item = T>,
             {
