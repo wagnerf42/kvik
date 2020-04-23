@@ -2,6 +2,7 @@ use crate::adaptive::Adaptive;
 use crate::even_levels::EvenLevels;
 use crate::join_policy::JoinPolicy;
 use crate::map::Map;
+use crate::merge::Merge;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
 use crate::wrap::Wrap;
@@ -64,6 +65,10 @@ pub trait ProducerCallback<T> {
         P: Producer<Item = T>;
 }
 
+//TODO: there is a way to not have any method
+//here and use .len from ExactSizeIterator
+//but it require changing with_producer to propagate
+//type constraints. would it be a better option ?
 pub trait Producer: Send + Iterator + Divisible {
     fn sizes(&self) -> (usize, Option<usize>) {
         self.size_hint()
@@ -78,9 +83,8 @@ pub trait Producer: Send + Iterator + Divisible {
             panic!("we are not enumerable")
         }
     }
+    fn preview(&self, index: usize) -> Self::Item;
 }
-
-impl<P> Producer for P where P: Send + Iterator + Divisible {}
 
 struct ReduceCallback<'f, OP, ID> {
     op: &'f OP,
@@ -203,6 +207,16 @@ pub trait EnumerableParallelIterator: ParallelIterator {
         I: ParallelIterator<Controlled = True, Enumerable = True>,
     {
         Zip { a: self, b: other }
+    }
+}
+
+pub trait PreviewableParallelIterator: ParallelIterator {
+    fn merge<I>(self, other: I) -> Merge<Self, I>
+    where
+        I: PreviewableParallelIterator<Item = Self::Item>,
+        Self::Item: Ord,
+    {
+        unimplemented!()
     }
 }
 

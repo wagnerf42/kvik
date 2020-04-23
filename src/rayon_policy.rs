@@ -121,3 +121,9 @@ impl<I: Divisible> Divisible for RayonProducer<I> {
         )
     }
 }
+
+impl<I: Producer> Producer for RayonProducer<I> {
+    fn preview(&self, index: usize) -> Self::Item {
+        self.base.preview(index)
+    }
+}

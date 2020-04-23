@@ -48,6 +48,15 @@ where
     }
 }
 
+impl<I> Producer for Blocked<I>
+where
+    I: Producer,
+{
+    fn preview(&self, index: usize) -> Self::Item {
+        self.base.preview(index)
+    }
+}
+
 impl<I> Blocked<I>
 where
     I: Iterator,

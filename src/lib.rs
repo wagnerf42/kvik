@@ -10,6 +10,7 @@ mod algorithms;
 pub use algorithms::manual_merge::adaptive_slice_merge;
 mod even_levels;
 mod map;
+mod merge;
 pub mod prelude;
 mod range;
 mod rayon_policy;

@@ -197,6 +197,19 @@ where
     }
 }
 
+impl<'f, S, C, D, W, SD> Producer for Worker<'f, S, C, D, W, SD>
+where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
+{
+    fn preview(&self, _index: usize) -> Self::Item {
+        panic!("you cannot preview a Worker")
+    }
+}
+
 impl<'f, S, C, D, W, SD> AdaptiveProducer for Worker<'f, S, C, D, W, SD>
 where
     S: Send,

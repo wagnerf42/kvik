@@ -130,3 +130,13 @@ where
         )
     }
 }
+
+impl<A, B> Producer for ZipProducer<A, B>
+where
+    A: Producer,
+    B: Producer,
+{
+    fn preview(&self, index: usize) -> Self::Item {
+        (self.a.preview(index), self.b.preview(index))
+    }
+}

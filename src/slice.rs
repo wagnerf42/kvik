@@ -73,3 +73,11 @@ impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
         )
     }
 }
+
+impl<'a, T: 'a + Sync> Producer for IterProducer<'a, T> {
+    fn preview(&self, index: usize) -> Self::Item {
+        &self.slice[self.index + index]
+    }
+}
+
+impl<'a, T: 'a + Sync> PreviewableParallelIterator for Iter<'a, T> {}

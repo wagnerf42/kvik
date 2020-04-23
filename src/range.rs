@@ -38,3 +38,11 @@ impl Divisible for std::ops::Range<u64> {
         (self.start..mid, mid..self.end)
     }
 }
+
+impl Producer for std::ops::Range<u64> {
+    fn preview(&self, index: usize) -> Self::Item {
+        self.start + index as u64
+    }
+}
+
+impl PreviewableParallelIterator for Iter {}

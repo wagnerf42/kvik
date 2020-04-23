@@ -98,3 +98,13 @@ where
         )
     }
 }
+
+impl<'f, R, I, F> Producer for MapProducer<'f, I, F>
+where
+    I: Producer,
+    F: Fn(I::Item) -> R + Sync,
+{
+    fn preview(&self, index: usize) -> Self::Item {
+        (self.op)(self.base.preview(index))
+    }
+}

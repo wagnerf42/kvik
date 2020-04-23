@@ -90,3 +90,12 @@ where
         }
     }
 }
+
+impl<D> Producer for WrapProducer<D>
+where
+    D: Divisible + Send,
+{
+    fn preview(&self, _index: usize) -> Self::Item {
+        panic!("you cannot preview a WrapProducer")
+    }
+}
