@@ -253,6 +253,13 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
     }
 }
 
+fn trivial_input(input_size: u32) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
+    let left = (0..input_size / 2).collect::<Vec<_>>();
+    let right = (input_size / 2..input_size).collect::<Vec<_>>();
+    let output = vec![0u32; input_size as usize];
+    (left, right, output)
+}
+
 fn interleaved_input(input_size: u32) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
     let (left, right): (Vec<_>, Vec<_>) = (0..input_size).tuples().unzip();
     let output = vec![0u32; input_size as usize];
@@ -613,6 +620,87 @@ fn merge_benchmarks(c: &mut Criterion) {
         .with_function("artisanal merge", |b, input_size| {
             b.iter_with_setup(
                 || all_equal_input(*input_size),
+                |(left, right, mut output)| {
+                    Merger {
+                        a: &left,
+                        a_index: 0,
+                        b: &right,
+                        b_index: 0,
+                        out: &mut output,
+                        out_index: 0,
+                    }
+                    .manual_merge(std::usize::MAX);
+                    (left, right, output)
+                },
+            )
+        }),
+    );
+    c.bench(
+        "trivial input",
+        ParameterizedBenchmark::new(
+            "itertool merge",
+            |b, input_size| {
+                b.iter_with_setup(
+                    || trivial_input(*input_size),
+                    |(left, right, mut output)| {
+                        left.iter()
+                            .merge(right.iter())
+                            .zip(output.iter_mut())
+                            .for_each(|(i, o)| *o = *i);
+                        (left, right, output)
+                    },
+                )
+            },
+            sizes.clone(),
+        )
+        .with_function("manual slice iter", |b, input_size| {
+            b.iter_with_setup(
+                || trivial_input(*input_size),
+                |(left, right, mut output)| {
+                    manual_slice_iter(&left, &right, &mut output);
+                    (left, right, output)
+                },
+            )
+        })
+        .with_function("manual merge iter", |b, input_size| {
+            b.iter_with_setup(
+                || trivial_input(*input_size),
+                |(left, right, mut output)| {
+                    manual_merge_iter(&left, &right, &mut output);
+                    (left, right, output)
+                },
+            )
+        })
+        .with_function("unsafe manual merge", |b, input_size| {
+            b.iter_with_setup(
+                || trivial_input(*input_size),
+                |(left, right, mut output)| {
+                    unsafe_manual_merge(&left, &right, &mut output);
+                    (left, right, output)
+                },
+            )
+        })
+        .with_function("safe very manual merge", |b, input_size| {
+            b.iter_with_setup(
+                || trivial_input(*input_size),
+                |(left, right, mut output)| {
+                    safe_very_manual_merge(&left, &right, &mut output);
+                    (left, right, output)
+                },
+            )
+        })
+        .with_function("safe manual merge", |b, input_size| {
+            b.iter_with_setup(
+                || trivial_input(*input_size),
+                |(left, right, mut output)| {
+                    safe_manual_merge(&left, &right, &mut output);
+                    (left, right, output)
+                },
+            )
+        })
+        .with_function("artisanal merge", |b, input_size| {
+            b.iter_with_setup(
+                || trivial_input(*input_size),
                 |(left, right, mut output)| {
                     Merger {
                         a: &left,

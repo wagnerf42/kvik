@@ -48,29 +48,17 @@ mod tests {
     #[test]
     fn even_levels_test() {
         //This does not return 1, ie, it does not end at an even level
-        (0u64..10u64)
-            .into_par_iter()
-            .map(|_| 1u64)
+        assert!(!(0u64..100u64)
+            .wrap_iter()
+            .map(|_| true)
             .even_levels()
             .reduce(
-                || 0u64,
+                || true,
                 |left, right| {
-                    if left != right {
-                        assert!(left == 0u64 || right == 0u64);
-                        if std::cmp::max(left, right) == 2u64 {
-                            1u64
-                        } else {
-                            2u64
-                        }
-                    } else {
-                        if left == 1u64 || left == 0u64 {
-                            2u64
-                        } else {
-                            1u64
-                        }
-                    }
-                },
-            );
+                    assert_eq!(left, right);
+                    !left
+                }
+            ));
     }
     #[test]
     fn join_policy_test() {
