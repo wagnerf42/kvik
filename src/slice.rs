@@ -44,6 +44,10 @@ impl<'a, T: 'a> Iterator for IterProducer<'a, T> {
             Some(unsafe { self.slice.get_unchecked(index) })
         }
     }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.slice.len() - self.index;
+        (len, Some(len))
+    }
 }
 
 impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
