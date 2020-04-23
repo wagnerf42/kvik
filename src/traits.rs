@@ -128,6 +128,11 @@ where
 pub trait ParallelIterator: Sized {
     type Item: Send;
     type Controlled;
+    //TODO: we did not need a power for previewable
+    //do we really need them here ?
+    //it is only needed for SPECIALIZATION,
+    //so is there a method which is implemented for everyone but
+    //where implementations differ based on power ?
     type Enumerable;
     /// Use rayon's steals reducing scheduling policy.
     fn rayon(self, limit: usize) -> Rayon<Self> {

@@ -108,3 +108,11 @@ where
         (self.op)(self.base.preview(index))
     }
 }
+
+impl<R, I, F> PreviewableParallelIterator for Map<I, F>
+where
+    R: Send,
+    I: PreviewableParallelIterator,
+    F: Fn(I::Item) -> R + Sync,
+{
+}
