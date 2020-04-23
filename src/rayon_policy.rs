@@ -15,6 +15,8 @@ struct RayonProducer<I> {
 
 impl<I: ParallelIterator> ParallelIterator for Rayon<I> {
     type Item = I::Item;
+    type Controlled = I::Controlled;
+    type Enumerable = I::Enumerable;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -32,7 +34,7 @@ impl<I: ParallelIterator> ParallelIterator for Rayon<I> {
             CB: ProducerCallback<T>,
         {
             type Output = CB::Output;
-            fn call<P>(&self, base: P) -> CB::Output
+            fn call<P>(self, base: P) -> CB::Output
             where
                 P: Producer<Item = T>,
             {
@@ -60,7 +62,7 @@ impl<I: Iterator> Iterator for RayonProducer<I> {
 }
 
 impl<I: Divisible> Divisible for RayonProducer<I> {
-    type Power = I::Power;
+    type Controlled = I::Controlled;
     fn should_be_divided(&self) -> bool {
         self.counter != 0 && self.base.should_be_divided()
     }

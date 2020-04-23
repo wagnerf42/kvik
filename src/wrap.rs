@@ -15,6 +15,8 @@ where
     D: Send + Divisible,
 {
     type Item = D;
+    type Controlled = D::Controlled;
+    type Enumerable = False;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -44,7 +46,7 @@ impl<D> Divisible for WrapProducer<D>
 where
     D: Divisible,
 {
-    type Power = D::Power;
+    type Controlled = D::Controlled;
     fn should_be_divided(&self) -> bool {
         self.content
             .as_ref()

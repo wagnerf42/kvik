@@ -16,7 +16,7 @@ where
     ID: Fn() -> T + Send + Sync,
 {
     type Output = T;
-    fn call<P>(&self, producer: P) -> Self::Output
+    fn call<P>(self, producer: P) -> Self::Output
     where
         P: Producer<Item = T>,
     {
@@ -29,6 +29,8 @@ where
     I: ParallelIterator,
 {
     type Item = I::Item;
+    type Controlled = False;
+    type Enumerable = False;
     fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,

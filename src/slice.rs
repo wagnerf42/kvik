@@ -14,6 +14,8 @@ impl<'a, T: 'a + Sync> IntoParallelIterator for &'a [T] {
 
 impl<'a, T: 'a + Sync> ParallelIterator for Iter<'a, T> {
     type Item = &'a T;
+    type Controlled = True;
+    type Enumerable = True;
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -45,7 +47,7 @@ impl<'a, T: 'a> Iterator for IterProducer<'a, T> {
 }
 
 impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
-    type Power = Indexed;
+    type Controlled = True;
     fn should_be_divided(&self) -> bool {
         self.slice.len() - self.index >= 2
     }
