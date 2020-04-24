@@ -51,6 +51,15 @@ where
     }
 }
 
+impl<I> Producer for EvenLevelsProducer<I>
+where
+    I: Producer,
+{
+    fn preview(&self, index: usize) -> Self::Item {
+        self.base.preview(index)
+    }
+}
+
 pub struct EvenLevels<I> {
     pub base: I,
 }

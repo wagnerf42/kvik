@@ -52,6 +52,15 @@ where
     }
 }
 
+impl<I> Producer for JoinPolicyProducer<I>
+where
+    I: Producer,
+{
+    fn preview(&self, index: usize) -> Self::Item {
+        self.base.preview(index)
+    }
+}
+
 pub struct JoinPolicy<I> {
     pub base: I,
     pub limit: usize,

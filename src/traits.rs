@@ -2,6 +2,8 @@ use crate::adaptive::Adaptive;
 use crate::even_levels::EvenLevels;
 use crate::join_policy::JoinPolicy;
 use crate::map::Map;
+use crate::merge::Merge;
+use crate::private_try::Try;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
 use crate::wrap::Wrap;
@@ -64,6 +66,10 @@ pub trait ProducerCallback<T> {
         P: Producer<Item = T>;
 }
 
+//TODO: there is a way to not have any method
+//here and use .len from ExactSizeIterator
+//but it require changing with_producer to propagate
+//type constraints. would it be a better option ?
 pub trait Producer: Send + Iterator + Divisible {
     fn sizes(&self) -> (usize, Option<usize>) {
         self.size_hint()
@@ -78,9 +84,8 @@ pub trait Producer: Send + Iterator + Divisible {
             panic!("we are not enumerable")
         }
     }
+    fn preview(&self, index: usize) -> Self::Item;
 }
-
-impl<P> Producer for P where P: Send + Iterator + Divisible {}
 
 struct ReduceCallback<'f, OP, ID> {
     op: &'f OP,
@@ -124,6 +129,11 @@ where
 pub trait ParallelIterator: Sized {
     type Item: Send;
     type Controlled;
+    //TODO: we did not need a power for previewable
+    //do we really need them here ?
+    //it is only needed for SPECIALIZATION,
+    //so is there a method which is implemented for everyone but
+    //where implementations differ based on power ?
     type Enumerable;
     /// Use rayon's steals reducing scheduling policy.
     fn rayon(self, limit: usize) -> Rayon<Self> {
@@ -197,12 +207,59 @@ pub trait ParallelIterator: Sized {
         CB: ProducerCallback<Self::Item>;
 }
 
-pub trait EnumerableParallelIterator: ParallelIterator {
-    fn zip<I>(self, other: I) -> Zip<Self, I>
+// we need a new trait to specialize try_reduce
+pub trait TryReducible: ParallelIterator {
+    fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
-        I: ParallelIterator<Controlled = True, Enumerable = True>,
+        OP: Fn(T, T) -> Self::Item + Sync + Send,
+        ID: Fn() -> T + Sync + Send,
+        Self::Item: Try<Ok = T>;
+}
+
+impl<I> TryReducible for I
+where
+    I: ParallelIterator<Controlled = True>,
+{
+    fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
+    where
+        OP: Fn(T, T) -> Self::Item + Sync + Send,
+        ID: Fn() -> T + Sync + Send,
+        Self::Item: Try<Ok = T>,
     {
-        Zip { a: self, b: other }
+        unimplemented!()
+    }
+}
+
+pub trait EnumerableParallelIterator: ParallelIterator {
+    /// zip two parallel iterators.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rayon_try_fold::prelude::*;
+    /// let mut v = vec![0; 5];
+    /// v.par_iter_mut().zip(0..5).for_each(|(r, i)| *r = i);
+    /// assert_eq!(v, vec![0, 1, 2, 3, 4])
+    /// ```
+    fn zip<I>(self, other: I) -> Zip<Self, I::Iter>
+    where
+        I: IntoParallelIterator,
+        I::Iter: ParallelIterator<Controlled = True, Enumerable = True>,
+    {
+        Zip {
+            a: self,
+            b: other.into_par_iter(),
+        }
+    }
+}
+
+pub trait PreviewableParallelIterator: ParallelIterator {
+    fn merge<I>(self, other: I) -> Merge<Self, I>
+    where
+        I: PreviewableParallelIterator<Item = Self::Item>,
+        Self::Item: Ord,
+    {
+        Merge { a: self, b: other }
     }
 }
 
@@ -234,6 +291,30 @@ where
     type Item = <&'data I as IntoParallelIterator>::Item;
 
     fn par_iter(&'data self) -> Self::Iter {
+        self.into_par_iter()
+    }
+}
+
+pub trait IntoParallelRefMutIterator<'data> {
+    /// The type of iterator that will be created.
+    type Iter: ParallelIterator<Item = Self::Item>;
+
+    /// The type of item that will be produced; this is typically an
+    /// `&'data mut T` reference.
+    type Item: Send + 'data;
+
+    /// Creates the parallel iterator from `self`.
+    fn par_iter_mut(&'data mut self) -> Self::Iter;
+}
+
+impl<'data, I: 'data + ?Sized> IntoParallelRefMutIterator<'data> for I
+where
+    &'data mut I: IntoParallelIterator,
+{
+    type Iter = <&'data mut I as IntoParallelIterator>::Iter;
+    type Item = <&'data mut I as IntoParallelIterator>::Item;
+
+    fn par_iter_mut(&'data mut self) -> Self::Iter {
         self.into_par_iter()
     }
 }
