@@ -172,6 +172,7 @@ struct Merger<'a, T> {
     out_index: usize,
 }
 impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
+    #[inline]
     fn copy_from_a(&mut self, amount: usize) {
         //PRECONDITION amount <= a.len() - a_index
         //PRECONDITION amount <= out.len() - out_index
@@ -180,6 +181,7 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
         self.out_index += amount;
         self.a_index += amount;
     }
+    #[inline]
     fn copy_from_b(&mut self, amount: usize) {
         //PRECONDITION amount <= b.len() - b_index
         //PRECONDITION amount <= out.len() - out_index
@@ -189,70 +191,122 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
         self.b_index += amount;
     }
 
-    fn manual_merge(&mut self, limit: usize) {
-        let mut processed = 0;
-        let to_do = std::cmp::min(limit, self.out.len().saturating_sub(self.out_index));
-        while processed < to_do {
-            let work_remaining = to_do - processed;
-            let a_remaining = self.a.len().saturating_sub(self.a_index);
-            let b_remaining = self.b.len().saturating_sub(self.b_index);
-            if a_remaining == 0 {
-                self.copy_from_b(work_remaining);
-                break;
+    pub fn manual_merge(&mut self, limit: usize) {
+        let out_len = self.out.len();
+        let to_do = std::cmp::min(out_len - self.out_index, limit);
+        if self.a_index >= self.a.len() {
+            self.copy_from_b(to_do);
+            return;
+        }
+        if self.b_index >= self.b.len() {
+            self.copy_from_a(to_do);
+            return;
+        }
+        let a_remaining = self.a.len() - self.a_index;
+        if self.a[self.a_index + std::cmp::min(to_do, a_remaining - 1)] <= self.b[self.b_index] {
+            self.copy_from_a(std::cmp::min(to_do, a_remaining));
+            if to_do > a_remaining {
+                self.copy_from_b(to_do - a_remaining);
             }
-            if b_remaining == 0 {
-                self.copy_from_a(work_remaining);
-                break;
+            return;
+        }
+        let b_remaining = self.b.len() - self.b_index;
+        if self.b[self.b_index + std::cmp::min(to_do, b_remaining - 1)] < self.a[self.a_index] {
+            let b_remaining = self.b.len() - self.b_index;
+            self.copy_from_b(std::cmp::min(to_do, b_remaining));
+            if to_do > b_remaining {
+                self.copy_from_a(to_do - b_remaining);
             }
+            return;
+        }
 
-            //More aggressive optimisation, we check the farthest *relevant* index of a or b for head-tail
-            //matching. If the work remaining is much smaller than the slices, then the probability of
-            //this head-tail match increases by checking only the last possible index as per the work
-            //remaining.
+        let left_len = self.a.len();
+        let right_len = self.b.len();
 
-            let a_last = self.a_index + std::cmp::min(work_remaining, a_remaining) - 1;
-            let b_last = self.b_index + std::cmp::min(work_remaining, b_remaining) - 1;
+        let left = &mut self.a;
+        let right = &mut self.b;
+        let left_index = &mut self.a_index;
+        let right_index = &mut self.b_index;
+        let output = &mut self.out;
+        let out_index = &mut self.out_index;
 
-            if self.a[a_last] <= self.b[self.b_index] {
-                // This also handles all equal on both sides
-                self.copy_from_a(std::cmp::min(work_remaining, a_remaining));
-                processed += std::cmp::min(work_remaining, a_remaining);
-            } else if self.b[b_last] < self.a[self.a_index] {
-                self.copy_from_b(std::cmp::min(work_remaining, b_remaining));
-                processed += std::cmp::min(work_remaining, b_remaining);
-            } else if self.b[b_last] == self.a[self.a_index] {
-                // Not sure if this one is worth it. It is logarithmic versus linear
-                if self.b[b_last] == self.b[self.b_index] {
-                    debug_assert!(self.a[self.a_index] != self.a[a_last]);
-                    let a_unequal_index = index_without_first_value(&self.a[self.a_index..a_last]);
-                    self.copy_from_a(a_unequal_index);
-                    processed += a_unequal_index;
-                } else {
-                    let b_unequal_index =
-                        index_without_last_value(&self.b[self.b_index..b_last + 1]);
-                    self.copy_from_b(b_unequal_index + 1);
-                    processed += b_unequal_index + 1;
-                }
+        for _ in 0..to_do {
+            if *left_index >= left_len {
+                output[*out_index] = right[*right_index];
+                *out_index += 1;
+                *right_index += 1;
+            } else if *right_index >= right_len {
+                output[*out_index] = left[*left_index];
+                *out_index += 1;
+                *left_index += 1;
+            } else if left[*left_index] <= right[*right_index] {
+                output[*out_index] = left[*left_index];
+                *left_index += 1;
+                *out_index += 1;
             } else {
-                let block_size =
-                    std::cmp::min(std::cmp::min(work_remaining, a_remaining), b_remaining);
-                (0..block_size).for_each(|_| {
-                    if self.a[self.a_index] <= self.b[self.b_index] {
-                        self.out[self.out_index] = self.a[self.a_index];
-                        self.a_index += 1;
-                        self.out_index += 1;
-                    } else {
-                        self.out[self.out_index] = self.b[self.b_index];
-                        self.b_index += 1;
-                        self.out_index += 1;
-                    }
-                });
-                processed += block_size;
+                output[*out_index] = right[*right_index];
+                *right_index += 1;
+                *out_index += 1;
             }
         }
+        //let work_remaining = std::cmp::min(limit, self.out.len().saturating_sub(self.out_index));
+        //let a_remaining = self.a.len().saturating_sub(self.a_index);
+        //let b_remaining = self.b.len().saturating_sub(self.b_index);
+        //if a_remaining == 0 {
+        //    self.copy_from_b(work_remaining);
+        //    return;
+        //}
+        //if b_remaining == 0 {
+        //    self.copy_from_a(work_remaining);
+        //    return;
+        //}
+
+        ////More aggressive optimisation, we check the farthest *relevant* index of a or b for head-tail
+        ////matching. If the work remaining is much smaller than the slices, then the probability of
+        ////this head-tail match increases by checking only the last possible index as per the work
+        ////remaining.
+
+        //let a_last = self.a_index + std::cmp::min(work_remaining, a_remaining) - 1;
+        //let b_last = self.b_index + std::cmp::min(work_remaining, b_remaining) - 1;
+
+        //unsafe {
+        //    if self.a.get_unchecked(a_last) <= self.b.get_unchecked(self.b_index) {
+        //        // This also handles all equal on both sides
+        //        self.copy_from_a(std::cmp::min(work_remaining, a_remaining));
+        //        if work_remaining > a_remaining {
+        //            self.copy_from_b(work_remaining - a_remaining);
+        //        }
+        //    } else if self.b[b_last] < self.a[self.a_index] {
+        //        self.copy_from_b(std::cmp::min(work_remaining, b_remaining));
+        //        if work_remaining > b_remaining {
+        //            self.copy_from_a(work_remaining - b_remaining);
+        //        }
+        //    } else {
+        //        for index in 0..work_remaining {
+        //            if self.a_index >= self.a.len() {
+        //                self.copy_from_b(work_remaining - index);
+        //                break;
+        //            } else if self.b_index >= self.b.len() {
+        //                self.copy_from_a(work_remaining - index);
+        //                break;
+        //            } else if self.a.get_unchecked(self.a_index)
+        //                <= self.b.get_unchecked(self.b_index)
+        //            {
+        //                *self.out.get_unchecked_mut(self.out_index) =
+        //                    *self.a.get_unchecked(self.a_index);
+        //                self.a_index += 1;
+        //                self.out_index += 1;
+        //            } else {
+        //                *self.out.get_unchecked_mut(self.out_index) =
+        //                    *self.b.get_unchecked(self.b_index);
+        //                self.b_index += 1;
+        //                self.out_index += 1;
+        //            };
+        //        }
+        //    }
+        //}
     }
 }
-
 fn trivial_input(input_size: u32) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
     let left = (0..input_size / 2).collect::<Vec<_>>();
     let right = (input_size / 2..input_size).collect::<Vec<_>>();
@@ -311,6 +365,7 @@ fn all_equal_input(input_size: u32) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
 
 fn merge_benchmarks(c: &mut Criterion) {
     let sizes: Vec<u32> = vec![100_000, 300_000, 900_000, 2_700_000, 8_100_000, 24_300_000];
+    //let sizes: Vec<u32> = vec![100_000]; //, 300_000, 900_000, 2_700_000, 8_100_000, 24_300_000];
     c.bench(
         "merge interleaved input",
         ParameterizedBenchmark::new(
