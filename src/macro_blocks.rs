@@ -17,13 +17,13 @@ impl<P: Producer<Controlled = True>> MacroBlockProducer<P> {
         MacroBlockProducer {
             base,
             division_limit: Some(1),
-            initial_size: max_size.unwrap_or(usize::MAX),
+            initial_size: max_size.unwrap_or(std::usize::MAX),
         }
     }
     // return how much has already been processed
     fn done(&self) -> usize {
         let (_, max_size) = self.base.size_hint();
-        self.initial_size - max_size.unwrap_or(usize::MAX)
+        self.initial_size - max_size.unwrap_or(std::usize::MAX)
     }
 }
 
