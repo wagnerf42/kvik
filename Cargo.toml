@@ -18,6 +18,10 @@ rand="*"
 name="merge"
 harness=false
 
+[[bench]]
+name="sort"
+harness=false
+
 [dev_dependencies]
 criterion="*"
 thread_binder="*"

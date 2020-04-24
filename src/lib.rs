@@ -8,6 +8,7 @@ mod adaptive;
 pub use adaptive::work;
 mod algorithms;
 pub use algorithms::manual_merge::adaptive_slice_merge;
+pub use algorithms::slice_merge_sort::slice_par_sort;
 mod even_levels;
 mod macro_blocks;
 mod map;
@@ -104,7 +105,6 @@ mod tests {
     }
     #[test]
     fn even_levels_test() {
-        //This does not return 1, ie, it does not end at an even level
         assert!(!(0u64..100u64)
             .wrap_iter()
             .map(|_| true)
