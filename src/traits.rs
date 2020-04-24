@@ -3,6 +3,7 @@ use crate::even_levels::EvenLevels;
 use crate::join_policy::JoinPolicy;
 use crate::map::Map;
 use crate::merge::Merge;
+use crate::private_try::Try;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
 use crate::wrap::Wrap;
@@ -204,6 +205,29 @@ pub trait ParallelIterator: Sized {
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>;
+}
+
+// we need a new trait to specialize try_reduce
+pub trait TryReducible: ParallelIterator {
+    fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
+    where
+        OP: Fn(T, T) -> Self::Item + Sync + Send,
+        ID: Fn() -> T + Sync + Send,
+        Self::Item: Try<Ok = T>;
+}
+
+impl<I> TryReducible for I
+where
+    I: ParallelIterator<Controlled = True>,
+{
+    fn try_reduce<T, OP, ID>(self, identity: ID, op: OP) -> Self::Item
+    where
+        OP: Fn(T, T) -> Self::Item + Sync + Send,
+        ID: Fn() -> T + Sync + Send,
+        Self::Item: Try<Ok = T>,
+    {
+        unimplemented!()
+    }
 }
 
 pub trait EnumerableParallelIterator: ParallelIterator {
