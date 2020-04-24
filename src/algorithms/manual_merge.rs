@@ -1,7 +1,4 @@
-use crate::utils::slice_utils::{
-    index_without_first_value, index_without_last_value, subslice_without_first_value,
-    subslice_without_last_value,
-};
+use crate::utils::slice_utils::{subslice_without_first_value, subslice_without_last_value};
 use crate::work;
 
 struct Merger<'a, T> {
@@ -41,68 +38,66 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
     }
 
     fn manual_merge(&mut self, limit: usize) {
-        let mut processed = 0;
-        let to_do = std::cmp::min(limit, self.out.len().saturating_sub(self.out_index));
-        while processed < to_do {
-            let work_remaining = to_do - processed;
-            let a_remaining = self.a.len().saturating_sub(self.a_index);
-            let b_remaining = self.b.len().saturating_sub(self.b_index);
-            if a_remaining == 0 {
-                self.copy_from_b(work_remaining);
-                break;
+        let out_len = self.out.len();
+        let to_do = std::cmp::min(out_len - self.out_index, limit);
+        if self.a_index >= self.a.len() {
+            self.copy_from_b(to_do);
+            return;
+        }
+        if self.b_index >= self.b.len() {
+            self.copy_from_a(to_do);
+            return;
+        }
+        let a_remaining = self.a.len() - self.a_index;
+        if self.a[self.a_index + std::cmp::min(to_do, a_remaining - 1)] <= self.b[self.b_index] {
+            self.copy_from_a(std::cmp::min(to_do, a_remaining));
+            if to_do > a_remaining {
+                self.copy_from_b(to_do - a_remaining);
             }
-            if b_remaining == 0 {
-                self.copy_from_a(work_remaining);
-                break;
+            return;
+        }
+        let b_remaining = self.b.len() - self.b_index;
+        if self.b[self.b_index + std::cmp::min(to_do, b_remaining - 1)] < self.a[self.a_index] {
+            let b_remaining = self.b.len() - self.b_index;
+            self.copy_from_b(std::cmp::min(to_do, b_remaining));
+            if to_do > b_remaining {
+                self.copy_from_a(to_do - b_remaining);
             }
+            return;
+        }
 
-            //More aggressive optimisation, we check the farthest *relevant* index of a or b for head-tail
-            //matching. If the work remaining is much smaller than the slices, then the probability of
-            //this head-tail match increases by checking only the last possible index as per the work
-            //remaining.
+        let mut left_index = self.a_index;
+        let mut right_index = self.b_index;
+        let mut out_index = self.out_index;
+        let left_len = self.a.len();
+        let right_len = self.b.len();
+        let left = self.a;
+        let right = self.b;
+        let out = &mut self.out[..];
 
-            let a_last = self.a_index + std::cmp::min(work_remaining, a_remaining) - 1;
-            let b_last = self.b_index + std::cmp::min(work_remaining, b_remaining) - 1;
-
-            if self.a[a_last] <= self.b[self.b_index] {
-                // This also handles all equal on both sides
-                self.copy_from_a(std::cmp::min(work_remaining, a_remaining));
-                processed += std::cmp::min(work_remaining, a_remaining);
-            } else if self.b[b_last] < self.a[self.a_index] {
-                self.copy_from_b(std::cmp::min(work_remaining, b_remaining));
-                processed += std::cmp::min(work_remaining, b_remaining);
-            } else if self.b[b_last] == self.a[self.a_index] {
-                // Not sure if this one is worth it. It is logarithmic versus linear
-                if self.b[b_last] == self.b[self.b_index] {
-                    debug_assert!(self.a[self.a_index] != self.a[a_last]);
-                    let a_unequal_index = index_without_first_value(&self.a[self.a_index..a_last]);
-                    self.copy_from_a(a_unequal_index);
-                    processed += a_unequal_index;
-                } else {
-                    let b_unequal_index =
-                        index_without_last_value(&self.b[self.b_index..b_last + 1]);
-                    self.copy_from_b(b_unequal_index + 1);
-                    processed += b_unequal_index + 1;
-                }
+        for _ in 0..to_do {
+            if left_index >= left_len {
+                out[out_index] = right[right_index];
+                out_index += 1;
+                right_index += 1;
+            } else if right_index >= right_len {
+                out[out_index] = left[left_index];
+                out_index += 1;
+                left_index += 1;
+            } else if left[left_index] <= right[right_index] {
+                out[out_index] = left[left_index];
+                left_index += 1;
+                out_index += 1;
             } else {
-                let block_size =
-                    std::cmp::min(std::cmp::min(work_remaining, a_remaining), b_remaining);
-                (0..block_size).for_each(|_| {
-                    if self.a[self.a_index] <= self.b[self.b_index] {
-                        self.out[self.out_index] = self.a[self.a_index];
-                        self.a_index += 1;
-                        self.out_index += 1;
-                    } else {
-                        self.out[self.out_index] = self.b[self.b_index];
-                        self.b_index += 1;
-                        self.out_index += 1;
-                    }
-                });
-                processed += block_size;
+                out[out_index] = right[right_index];
+                right_index += 1;
+                out_index += 1;
             }
         }
+        self.a_index = left_index;
+        self.b_index = right_index;
+        self.out_index = out_index;
     }
-
     fn divide(self) -> (Self, Self) {
         //PRECONDITION not a trivial merge, as per triviality check.
         let out_remaining_len = self.out.len() - self.out_index;

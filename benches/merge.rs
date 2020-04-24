@@ -220,91 +220,37 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
             return;
         }
 
+        let mut left_index = self.a_index;
+        let mut right_index = self.b_index;
+        let mut out_index = self.out_index;
         let left_len = self.a.len();
         let right_len = self.b.len();
-
-        let left = &mut self.a;
-        let right = &mut self.b;
-        let left_index = &mut self.a_index;
-        let right_index = &mut self.b_index;
-        let output = &mut self.out;
-        let out_index = &mut self.out_index;
+        let left = self.a;
+        let right = self.b;
+        let out = &mut self.out[..];
 
         for _ in 0..to_do {
-            if *left_index >= left_len {
-                output[*out_index] = right[*right_index];
-                *out_index += 1;
-                *right_index += 1;
-            } else if *right_index >= right_len {
-                output[*out_index] = left[*left_index];
-                *out_index += 1;
-                *left_index += 1;
-            } else if left[*left_index] <= right[*right_index] {
-                output[*out_index] = left[*left_index];
-                *left_index += 1;
-                *out_index += 1;
+            if left_index >= left_len {
+                out[out_index] = right[right_index];
+                out_index += 1;
+                right_index += 1;
+            } else if right_index >= right_len {
+                out[out_index] = left[left_index];
+                out_index += 1;
+                left_index += 1;
+            } else if left[left_index] <= right[right_index] {
+                out[out_index] = left[left_index];
+                left_index += 1;
+                out_index += 1;
             } else {
-                output[*out_index] = right[*right_index];
-                *right_index += 1;
-                *out_index += 1;
+                out[out_index] = right[right_index];
+                right_index += 1;
+                out_index += 1;
             }
         }
-        //let work_remaining = std::cmp::min(limit, self.out.len().saturating_sub(self.out_index));
-        //let a_remaining = self.a.len().saturating_sub(self.a_index);
-        //let b_remaining = self.b.len().saturating_sub(self.b_index);
-        //if a_remaining == 0 {
-        //    self.copy_from_b(work_remaining);
-        //    return;
-        //}
-        //if b_remaining == 0 {
-        //    self.copy_from_a(work_remaining);
-        //    return;
-        //}
-
-        ////More aggressive optimisation, we check the farthest *relevant* index of a or b for head-tail
-        ////matching. If the work remaining is much smaller than the slices, then the probability of
-        ////this head-tail match increases by checking only the last possible index as per the work
-        ////remaining.
-
-        //let a_last = self.a_index + std::cmp::min(work_remaining, a_remaining) - 1;
-        //let b_last = self.b_index + std::cmp::min(work_remaining, b_remaining) - 1;
-
-        //unsafe {
-        //    if self.a.get_unchecked(a_last) <= self.b.get_unchecked(self.b_index) {
-        //        // This also handles all equal on both sides
-        //        self.copy_from_a(std::cmp::min(work_remaining, a_remaining));
-        //        if work_remaining > a_remaining {
-        //            self.copy_from_b(work_remaining - a_remaining);
-        //        }
-        //    } else if self.b[b_last] < self.a[self.a_index] {
-        //        self.copy_from_b(std::cmp::min(work_remaining, b_remaining));
-        //        if work_remaining > b_remaining {
-        //            self.copy_from_a(work_remaining - b_remaining);
-        //        }
-        //    } else {
-        //        for index in 0..work_remaining {
-        //            if self.a_index >= self.a.len() {
-        //                self.copy_from_b(work_remaining - index);
-        //                break;
-        //            } else if self.b_index >= self.b.len() {
-        //                self.copy_from_a(work_remaining - index);
-        //                break;
-        //            } else if self.a.get_unchecked(self.a_index)
-        //                <= self.b.get_unchecked(self.b_index)
-        //            {
-        //                *self.out.get_unchecked_mut(self.out_index) =
-        //                    *self.a.get_unchecked(self.a_index);
-        //                self.a_index += 1;
-        //                self.out_index += 1;
-        //            } else {
-        //                *self.out.get_unchecked_mut(self.out_index) =
-        //                    *self.b.get_unchecked(self.b_index);
-        //                self.b_index += 1;
-        //                self.out_index += 1;
-        //            };
-        //        }
-        //    }
-        //}
+        self.a_index = left_index;
+        self.b_index = right_index;
+        self.out_index = out_index;
     }
 }
 fn trivial_input(input_size: u32) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
