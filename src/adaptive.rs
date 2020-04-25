@@ -88,9 +88,20 @@ where
         },
         |c| {
             if c.migrated() {
-                receiver
-                    .recv()
-                    .expect("receiving adaptive producer failed")
+                let stolen_task = {
+                    #[cfg(feature = "logs")]
+                    {
+                        use rayon_logs::subgraph;
+                        subgraph("En attendant", 0, || {
+                            receiver.recv().expect("receiving adaptive producer failed")
+                        })
+                    }
+                    #[cfg(not(feature = "logs"))]
+                    {
+                        receiver.recv().expect("receiving adaptive producer failed")
+                    }
+                };
+                stolen_task
                     .map(|producer| adaptive_scheduler(reducer, producer, (reducer.identity)()))
             } else {
                 None
