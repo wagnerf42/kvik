@@ -161,7 +161,8 @@ pub trait ParallelIterator: Sized {
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }
     }
-    fn join_policy(self, limit: usize) -> JoinPolicy<Self> {
+    /// Pass in the max depth of the division tree that you want
+    fn join_policy(self, limit: u32) -> JoinPolicy<Self> {
         JoinPolicy { base: self, limit }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>

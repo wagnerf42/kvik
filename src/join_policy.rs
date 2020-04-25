@@ -3,7 +3,7 @@ use crate::prelude::*;
 //that context?
 struct JoinPolicyProducer<I> {
     base: I,
-    limit: usize,
+    limit: u32,
 }
 
 impl<I> Iterator for JoinPolicyProducer<I>
@@ -26,11 +26,11 @@ where
         (
             JoinPolicyProducer {
                 base: left,
-                limit: self.limit,
+                limit: self.limit.saturating_sub(1),
             },
             JoinPolicyProducer {
                 base: right,
-                limit: self.limit,
+                limit: self.limit.saturating_sub(1),
             },
         )
     }
@@ -39,16 +39,16 @@ where
         (
             JoinPolicyProducer {
                 base: left,
-                limit: self.limit,
+                limit: self.limit.saturating_sub(1),
             },
             JoinPolicyProducer {
                 base: right,
-                limit: self.limit,
+                limit: self.limit.saturating_sub(1),
             },
         )
     }
     fn should_be_divided(&self) -> bool {
-        self.base.sizes().1.map(|b| b > self.limit).unwrap_or(true) && self.base.should_be_divided()
+        self.limit > 0 && self.base.should_be_divided()
     }
 }
 
@@ -63,7 +63,7 @@ where
 
 pub struct JoinPolicy<I> {
     pub base: I,
-    pub limit: usize,
+    pub limit: u32,
 }
 
 impl<I: ParallelIterator> ParallelIterator for JoinPolicy<I> {
@@ -76,7 +76,7 @@ impl<I: ParallelIterator> ParallelIterator for JoinPolicy<I> {
     {
         struct Callback<CB> {
             callback: CB,
-            limit: usize,
+            limit: u32,
         }
         impl<CB, T> ProducerCallback<T> for Callback<CB>
         where

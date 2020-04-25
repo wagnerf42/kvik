@@ -119,11 +119,16 @@ mod tests {
     }
     #[test]
     fn join_policy_test() {
-        const JP_SIZE: usize = 10;
-        (0u64..1000u64)
+        //TODO this test should have a lower and an upper bound on the base size
+        const JP_SIZE: u32 = 3;
+        const PROBLEM_SIZE: u64 = 1000;
+        (0u64..PROBLEM_SIZE)
             .wrap_iter()
             .map(|chunk| {
-                assert!(chunk.end - chunk.start >= JP_SIZE as u64);
+                assert_eq!(
+                    chunk.end - chunk.start,
+                    PROBLEM_SIZE / 2u32.pow(JP_SIZE) as u64
+                );
                 chunk
             })
             .join_policy(JP_SIZE)
