@@ -89,6 +89,27 @@ where
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (left_a, right_a) = (
+            self.a.size_hint().0,
+            self.a
+                .size_hint()
+                .1
+                .expect("Left side of the zip is not enumerable"),
+        );
+        let (left_b, right_b) = (
+            self.b.size_hint().0,
+            self.b
+                .size_hint()
+                .1
+                .expect("Right side of the zip is not enumerable"),
+        );
+        assert_eq!(left_a, right_a);
+        assert_eq!(left_b, right_b);
+        assert_eq!(left_a, left_b);
+        (left_a, Some(right_a))
+    }
 }
 
 impl<A, B> Divisible for ZipProducer<A, B>
@@ -98,8 +119,7 @@ where
 {
     type Controlled = A::Controlled;
     fn should_be_divided(&self) -> bool {
-        //TODO: or or and ?
-        self.a.should_be_divided() || self.b.should_be_divided()
+        self.a.should_be_divided() && self.b.should_be_divided()
     }
     fn divide(self) -> (Self, Self) {
         let (left_a, right_a) = self.a.divide();

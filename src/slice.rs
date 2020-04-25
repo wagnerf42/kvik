@@ -40,8 +40,7 @@ impl<'a, T: 'a> Iterator for IterProducer<'a, T> {
         } else {
             let index = self.index;
             self.index += 1;
-            //TODO: how badly to we really need that ?
-            Some(unsafe { self.slice.get_unchecked(index) })
+            Some(&self.slice[index])
         }
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -126,7 +125,7 @@ impl<'a, T: 'a + Sync> Divisible for std::slice::IterMut<'a, T> {
 }
 
 impl<'a, T: 'a + Send + Sync> Producer for std::slice::IterMut<'a, T> {
-    fn preview(&self, _index: usize) -> Self::Item {
-        panic!("no preview for IterMut")
+    fn preview(&self, index: usize) -> Self::Item {
+        panic!("mutable slices are not peekable");
     }
 }

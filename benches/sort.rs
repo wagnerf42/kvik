@@ -7,7 +7,7 @@ extern crate rayon_try_fold;
 
 use rand::prelude::*;
 use rayon::prelude::*;
-use rayon_try_fold::slice_par_sort;
+use rayon_try_fold::{iter_par_sort, slice_par_sort};
 use std::time::Duration;
 
 use criterion::{Criterion, ParameterizedBenchmark};
@@ -82,13 +82,33 @@ fn sort_benchmarks(c: &mut Criterion) {
                     });
                 },
             )
+        })
+        .with_function("iter par sort", |b, input_size| {
+            b.iter_with_setup(
+                || {
+                    let tp = rayon::ThreadPoolBuilder::new()
+                        .num_threads(NUM_THREADS)
+                        .build()
+                        .expect("Couldn't build thread pool");
+                    let mut input = (0..*input_size).collect::<Vec<_>>();
+                    let mut rng = rand::thread_rng();
+                    input.shuffle(&mut rng);
+                    (tp, input)
+                },
+                |(tp, mut input)| {
+                    tp.install(|| {
+                        iter_par_sort(&mut input);
+                        input
+                    });
+                },
+            )
         }),
     );
 }
 
 criterion_group! {
     name = benches;
-            config = Criterion::default().sample_size(10).warm_up_time(Duration::from_secs(1)).nresamples(500);
+            config = Criterion::default().sample_size(15).warm_up_time(Duration::from_secs(1)).nresamples(1000);
                 targets = sort_benchmarks
 }
 criterion_main!(benches);
