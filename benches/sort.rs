@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use criterion::{Criterion, ParameterizedBenchmark};
 
-const NUM_THREADS: usize = 4;
+const NUM_THREADS: usize = 16;
 
 fn sort_benchmarks(c: &mut Criterion) {
     //let sizes: Vec<u32> = vec![100_000];
