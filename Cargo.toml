@@ -22,6 +22,10 @@ harness=false
 name="sort"
 harness=false
 
+[[bench]]
+name="sort_scalability"
+harness=false
+
 [dev_dependencies]
 criterion="*"
 thread_binder="*"
