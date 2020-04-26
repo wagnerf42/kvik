@@ -8,7 +8,6 @@ extern crate rayon_try_fold;
 use itertools::Itertools;
 use rand::prelude::*;
 use rayon::prelude::*;
-use rayon_try_fold::utils::slice_utils::{index_without_first_value, index_without_last_value};
 
 use criterion::{Criterion, ParameterizedBenchmark};
 
@@ -222,35 +221,32 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
 
         let mut left_index = self.a_index;
         let mut right_index = self.b_index;
-        let mut out_index = self.out_index;
         let left_len = self.a.len();
         let right_len = self.b.len();
         let left = self.a;
         let right = self.b;
-        let out = &mut self.out[..];
+        let out = &mut self.out[self.out_index..self.out_index + to_do];
 
-        for _ in 0..to_do {
-            if left_index >= left_len {
-                out[out_index] = right[right_index];
-                out_index += 1;
-                right_index += 1;
-            } else if right_index >= right_len {
-                out[out_index] = left[left_index];
-                out_index += 1;
-                left_index += 1;
-            } else if left[left_index] <= right[right_index] {
-                out[out_index] = left[left_index];
-                left_index += 1;
-                out_index += 1;
-            } else {
-                out[out_index] = right[right_index];
-                right_index += 1;
-                out_index += 1;
+        for o in out {
+            unsafe {
+                if left_index >= left_len {
+                    *o = *right.get_unchecked(right_index);
+                    right_index += 1;
+                } else if right_index >= right_len {
+                    *o = *left.get_unchecked(left_index);
+                    left_index += 1;
+                } else if left.get_unchecked(left_index) <= right.get_unchecked(right_index) {
+                    *o = *left.get_unchecked(left_index);
+                    left_index += 1;
+                } else {
+                    *o = *right.get_unchecked(right_index);
+                    right_index += 1;
+                }
             }
         }
         self.a_index = left_index;
         self.b_index = right_index;
-        self.out_index = out_index;
+        self.out_index += to_do;
     }
 }
 fn trivial_input(input_size: u32) -> (Vec<u32>, Vec<u32>, Vec<u32>) {
@@ -721,7 +717,7 @@ fn merge_benchmarks(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-            config = Criterion::default().sample_size(10).nresamples(100);
+            config = Criterion::default().sample_size(50).nresamples(100);
                 targets = merge_benchmarks
 }
 criterion_main!(benches);

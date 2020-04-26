@@ -68,35 +68,32 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
 
         let mut left_index = self.a_index;
         let mut right_index = self.b_index;
-        let mut out_index = self.out_index;
         let left_len = self.a.len();
         let right_len = self.b.len();
         let left = self.a;
         let right = self.b;
-        let out = &mut self.out[..];
+        let out = &mut self.out[self.out_index..self.out_index + to_do];
 
-        for _ in 0..to_do {
-            if left_index >= left_len {
-                out[out_index] = right[right_index];
-                out_index += 1;
-                right_index += 1;
-            } else if right_index >= right_len {
-                out[out_index] = left[left_index];
-                out_index += 1;
-                left_index += 1;
-            } else if left[left_index] <= right[right_index] {
-                out[out_index] = left[left_index];
-                left_index += 1;
-                out_index += 1;
-            } else {
-                out[out_index] = right[right_index];
-                right_index += 1;
-                out_index += 1;
+        for o in out {
+            unsafe {
+                if left_index >= left_len {
+                    *o = *right.get_unchecked(right_index);
+                    right_index += 1;
+                } else if right_index >= right_len {
+                    *o = *left.get_unchecked(left_index);
+                    left_index += 1;
+                } else if left.get_unchecked(left_index) <= right.get_unchecked(right_index) {
+                    *o = *left.get_unchecked(left_index);
+                    left_index += 1;
+                } else {
+                    *o = *right.get_unchecked(right_index);
+                    right_index += 1;
+                }
             }
         }
         self.a_index = left_index;
         self.b_index = right_index;
-        self.out_index = out_index;
+        self.out_index += to_do;
     }
     fn divide(self) -> (Self, Self) {
         //PRECONDITION not a trivial merge, as per triviality check.
