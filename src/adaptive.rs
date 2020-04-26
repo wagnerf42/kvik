@@ -14,7 +14,7 @@ pub(crate) trait AdaptiveProducer: Producer {
 
 fn block_sizes() -> impl Iterator<Item = usize> {
     // TODO: cap
-    std::iter::successors(Some(1), |old| Some(2 * old))
+    std::iter::successors(Some(1), |old| Some(std::cmp::min(std::usize::MAX, 2 * old)))
 }
 
 pub struct Adaptive<I> {
@@ -143,6 +143,12 @@ where
         CB: ProducerCallback<Self::Item>,
     {
         self.base.with_producer(callback)
+    }
+    fn for_each<OP>(self, op: OP)
+    where
+        OP: Fn(Self::Item) + Sync + Send,
+    {
+        self.map(op).adaptive().reduce(|| (), |_, _| ())
     }
 }
 
