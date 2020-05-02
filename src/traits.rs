@@ -1,5 +1,6 @@
 use crate::adaptive::Adaptive;
 use crate::even_levels::EvenLevels;
+use crate::join_context_policy::JoinContextPolicy;
 use crate::join_policy::JoinPolicy;
 use crate::map::Map;
 use crate::merge::Merge;
@@ -164,6 +165,14 @@ pub trait ParallelIterator: Sized {
     /// Pass in the max depth of the division tree that you want
     fn join_policy(self, limit: u32) -> JoinPolicy<Self> {
         JoinPolicy { base: self, limit }
+    }
+    /// This policy divides on the left side (of each subtree) with a depth of exactly "lower_limit".
+    /// On the right side however, it divides if and only if the node is stolen.
+    fn join_context_policy(self, lower_limit: u32) -> JoinContextPolicy<Self> {
+        JoinContextPolicy {
+            base: self,
+            lower_limit,
+        }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
