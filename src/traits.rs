@@ -7,8 +7,11 @@ use crate::merge::Merge;
 use crate::private_try::Try;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
+use crate::small_channel::small_channel;
 use crate::wrap::Wrap;
 use crate::zip::Zip;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 // Iterators have different properties
 // which allow for specialisation of some algorithms.
@@ -101,12 +104,35 @@ where
     ID: Fn() -> T + Send + Sync,
 {
     if producer.should_be_divided() {
+        let cleanup = AtomicBool::new(false);
+        let (sender, receiver) = small_channel();
+        let (sender1, receiver1) = small_channel();
         let (left, right) = producer.divide();
         let (left_r, right_r) = rayon::join(
-            || schedule_join(left, reducer),
-            || schedule_join(right, reducer),
+            || {
+                let my_result = schedule_join(left, reducer);
+                let last = cleanup.swap(true, Ordering::SeqCst);
+                if last {
+                    let his_result = receiver.recv().expect("receiving depjoin failed");
+                    Some((reducer.op)(my_result, his_result))
+                } else {
+                    sender1.send(my_result);
+                    None
+                }
+            },
+            || {
+                let my_result = schedule_join(right, reducer);
+                let last = cleanup.swap(true, Ordering::SeqCst);
+                if last {
+                    let his_result = receiver1.recv().expect("receiving1 depjoin failed");
+                    Some((reducer.op)(his_result, my_result))
+                } else {
+                    sender.send(my_result);
+                    None
+                }
+            },
         );
-        (reducer.op)(left_r, right_r)
+        left_r.or(right_r).unwrap()
     } else {
         producer.fold((reducer.identity)(), reducer.op)
     }
