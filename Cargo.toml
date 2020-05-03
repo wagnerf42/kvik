@@ -15,15 +15,7 @@ rayon_logs={optional=true, git="https://github.com/wagnerf42/rayon-logs"}
 rand="*"
 
 [[bench]]
-name="merge"
-harness=false
-
-[[bench]]
-name="sort"
-harness=false
-
-[[bench]]
-name="sort_scalability"
+name="tuning"
 harness=false
 
 [dev_dependencies]
