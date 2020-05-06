@@ -91,24 +91,18 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (left_a, right_a) = (
+        let (a_lower_bound, a_upper_bound) = (
             self.a.size_hint().0,
-            self.a
-                .size_hint()
-                .1
-                .expect("Left side of the zip is not enumerable"),
+            self.a.size_hint().1.unwrap_or(std::usize::MAX),
         );
-        let (left_b, right_b) = (
+        let (b_lower_bound, b_upper_bound) = (
             self.b.size_hint().0,
-            self.b
-                .size_hint()
-                .1
-                .expect("Right side of the zip is not enumerable"),
+            self.b.size_hint().1.unwrap_or(std::usize::MAX),
         );
-        assert_eq!(left_a, right_a);
-        assert_eq!(left_b, right_b);
-        assert_eq!(left_a, left_b);
-        (left_a, Some(right_a))
+        (
+            std::cmp::min(a_lower_bound, b_lower_bound),
+            Some(std::cmp::min(a_upper_bound, b_upper_bound)),
+        )
     }
 }
 

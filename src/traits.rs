@@ -1,14 +1,18 @@
 use crate::adaptive::Adaptive;
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
+use crate::join_context_policy::JoinContextPolicy;
 use crate::join_policy::JoinPolicy;
 use crate::map::Map;
 use crate::merge::Merge;
 use crate::private_try::Try;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
+use crate::small_channel::small_channel;
 use crate::wrap::Wrap;
 use crate::zip::Zip;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 // Iterators have different properties
 // which allow for specialisation of some algorithms.
@@ -101,12 +105,35 @@ where
     ID: Fn() -> T + Send + Sync,
 {
     if producer.should_be_divided() {
+        let cleanup = AtomicBool::new(false);
+        let (sender, receiver) = small_channel();
+        let (sender1, receiver1) = small_channel();
         let (left, right) = producer.divide();
         let (left_r, right_r) = rayon::join(
-            || schedule_join(left, reducer),
-            || schedule_join(right, reducer),
+            || {
+                let my_result = schedule_join(left, reducer);
+                let last = cleanup.swap(true, Ordering::SeqCst);
+                if last {
+                    let his_result = receiver.recv().expect("receiving depjoin failed");
+                    Some((reducer.op)(my_result, his_result))
+                } else {
+                    sender1.send(my_result);
+                    None
+                }
+            },
+            || {
+                let my_result = schedule_join(right, reducer);
+                let last = cleanup.swap(true, Ordering::SeqCst);
+                if last {
+                    let his_result = receiver1.recv().expect("receiving1 depjoin failed");
+                    Some((reducer.op)(his_result, my_result))
+                } else {
+                    sender.send(my_result);
+                    None
+                }
+            },
         );
-        (reducer.op)(left_r, right_r)
+        left_r.or(right_r).unwrap()
     } else {
         producer.fold((reducer.identity)(), reducer.op)
     }
@@ -165,6 +192,14 @@ pub trait ParallelIterator: Sized {
     /// Pass in the max depth of the division tree that you want
     fn join_policy(self, limit: u32) -> JoinPolicy<Self> {
         JoinPolicy { base: self, limit }
+    }
+    /// This policy divides on the left side (of each subtree) with a depth of exactly "lower_limit".
+    /// On the right side however, it divides if and only if the node is stolen.
+    fn join_context_policy(self, lower_limit: u32) -> JoinContextPolicy<Self> {
+        JoinContextPolicy {
+            base: self,
+            lower_limit,
+        }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
