@@ -1,4 +1,5 @@
 use crate::adaptive::Adaptive;
+use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
 use crate::join_policy::JoinPolicy;
 use crate::map::Map;
@@ -203,6 +204,16 @@ pub trait ParallelIterator: Sized {
         };
         self.with_producer(reduce_cb)
     }
+
+    fn composed(self) -> Composed<Self> {
+        let inhib_upper = crate::composed::INHIBITOR.with(|v| v.clone());
+        Composed {
+            base: self,
+            inhib: std::sync::atomic::AtomicBool::new(false),
+            inhib_upper,
+        }
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>;
