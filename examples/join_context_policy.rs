@@ -8,12 +8,14 @@ fn main() {
     {
         let inp: Vec<_> = (0u64..PROBLEM_SIZE).collect();
         let tp = ThreadPoolBuilder::new()
-            .num_threads(8)
+            .num_threads(4)
             .build()
             .expect("Thread pool builder failed");
         let (sum, log) = tp.logging_install(|| {
             inp.par_iter()
                 .join_context_policy()
+                .lower_bound(1)
+                .upper_bound(6)
                 .map(|r| *r)
                 .reduce(|| 0, |left, right| left + right)
         });
