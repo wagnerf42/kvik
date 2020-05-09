@@ -5,6 +5,7 @@ mod blocked;
 mod upper_bound;
 pub use blocked::Blocked;
 mod adaptive;
+mod lower_bound;
 pub use adaptive::work;
 mod algorithms;
 pub use algorithms::iter_sort::iter_par_sort;
@@ -121,8 +122,7 @@ mod tests {
             ));
     }
     #[test]
-    fn join_policy_test() {
-        //TODO this test should have a lower and an upper bound on the base size
+    fn upper_bound_test() {
         const JP_SIZE: u32 = 3;
         const PROBLEM_SIZE: u64 = 1000;
         (0u64..PROBLEM_SIZE)
@@ -135,6 +135,24 @@ mod tests {
                 chunk
             })
             .upper_bound(JP_SIZE)
+            .reduce(|| (0..1), |left, _| left);
+    }
+    #[test]
+    fn lower_bound_test() {
+        //This is not too good, it relies on upper bound as well
+        const JP_SIZE: u32 = 3;
+        const PROBLEM_SIZE: u64 = 1000;
+        (0u64..PROBLEM_SIZE)
+            .wrap_iter()
+            .map(|chunk| {
+                assert_eq!(
+                    chunk.end - chunk.start,
+                    PROBLEM_SIZE / 2u32.pow(JP_SIZE) as u64
+                );
+                chunk
+            })
+            .upper_bound(0)
+            .lower_bound(JP_SIZE)
             .reduce(|| (0..1), |left, _| left);
     }
 }

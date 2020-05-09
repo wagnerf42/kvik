@@ -2,6 +2,7 @@ use crate::adaptive::Adaptive;
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
 use crate::join_context_policy::JoinContextPolicy;
+use crate::lower_bound::LowerBound;
 use crate::map::Map;
 use crate::merge::Merge;
 use crate::private_try::Try;
@@ -195,6 +196,13 @@ pub trait ParallelIterator: Sized {
     fn upper_bound(self, limit: u32) -> UpperBound<Self> {
         UpperBound { base: self, limit }
     }
+    /// This policy controls the division of the producer inside it.
+    /// It will *force* division of the producer iff:
+    ///     The depth of that producer in the binary tree of tasks is less than or equal to the limit.
+    fn lower_bound(self, limit: u32) -> LowerBound<Self> {
+        LowerBound { base: self, limit }
+    }
+
     /// This policy controls the division of the producer inside (before) it.
     /// It will veto the division of the base producer iff:
     ///     The right child of any node is not stolen
