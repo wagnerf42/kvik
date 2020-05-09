@@ -42,8 +42,8 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(
                 (left_slice, right_slice)
             }
         })
-        .join_context_policy(jc_thresh)
-        .join_policy(jp_thresh)
+        .join_context_policy()
+        .upper_bound(jp_thresh)
         .even_levels()
         .reduce_with(|(left_input, left_output), (right_input, right_output)| {
             let new_output = fuse_slices(left_output, right_output);

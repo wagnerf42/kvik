@@ -61,12 +61,12 @@ where
     }
 }
 
-pub struct JoinPolicy<I> {
+pub struct UpperBound<I> {
     pub base: I,
     pub limit: u32,
 }
 
-impl<I: ParallelIterator> ParallelIterator for JoinPolicy<I> {
+impl<I: ParallelIterator> ParallelIterator for UpperBound<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;

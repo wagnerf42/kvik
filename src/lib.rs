@@ -2,7 +2,7 @@
 extern crate rayon_logs as rayon;
 
 mod blocked;
-mod join_policy;
+mod upper_bound;
 pub use blocked::Blocked;
 mod adaptive;
 pub use adaptive::work;
@@ -133,7 +133,7 @@ mod tests {
                 );
                 chunk
             })
-            .join_policy(JP_SIZE)
+            .upper_bound(JP_SIZE)
             .reduce(|| (0..1), |left, _| left);
     }
 }
