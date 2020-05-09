@@ -2,13 +2,13 @@ use crate::adaptive::Adaptive;
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
 use crate::join_context_policy::JoinContextPolicy;
-use crate::join_policy::JoinPolicy;
 use crate::map::Map;
 use crate::merge::Merge;
 use crate::private_try::Try;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
 use crate::small_channel::small_channel;
+use crate::upper_bound::UpperBound;
 use crate::wrap::Wrap;
 use crate::zip::Zip;
 use std::sync::atomic::AtomicBool;
@@ -189,17 +189,17 @@ pub trait ParallelIterator: Sized {
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }
     }
-    /// Pass in the max depth of the division tree that you want
-    fn join_policy(self, limit: u32) -> JoinPolicy<Self> {
-        JoinPolicy { base: self, limit }
+    /// This policy controls the division of the producer inside it.
+    /// It will veto the division of a producer iff:
+    ///     The depth of that producer in the binary tree of tasks is equal to limit.
+    fn upper_bound(self, limit: u32) -> UpperBound<Self> {
+        UpperBound { base: self, limit }
     }
-    /// This policy divides on the left side (of each subtree) with a depth of exactly "lower_limit".
-    /// On the right side however, it divides if and only if the node is stolen.
-    fn join_context_policy(self, lower_limit: u32) -> JoinContextPolicy<Self> {
-        JoinContextPolicy {
-            base: self,
-            lower_limit,
-        }
+    /// This policy controls the division of the producer inside (before) it.
+    /// It will veto the division of the base producer iff:
+    ///     The right child of any node is not stolen
+    fn join_context_policy(self) -> JoinContextPolicy<Self> {
+        JoinContextPolicy { base: self }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where

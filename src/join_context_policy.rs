@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 struct JoinContextPolicyProducer<I> {
     base: I,
-    lower_limit: u32,
+    is_right: bool,
     my_creator: usize,
 }
 
@@ -27,12 +27,12 @@ where
         (
             JoinContextPolicyProducer {
                 base: left,
-                lower_limit: self.lower_limit.saturating_sub(1),
+                is_right: false,
                 my_creator: me,
             },
             JoinContextPolicyProducer {
                 base: right,
-                lower_limit: 0,
+                is_right: true,
                 my_creator: me,
             },
         )
@@ -43,19 +43,23 @@ where
         (
             JoinContextPolicyProducer {
                 base: left,
-                lower_limit: self.lower_limit.saturating_sub(1),
+                is_right: false,
                 my_creator: me,
             },
             JoinContextPolicyProducer {
                 base: right,
-                lower_limit: 0,
+                is_right: true,
                 my_creator: me,
             },
         )
     }
     fn should_be_divided(&self) -> bool {
+        // Left children can always divide (ie. defer this to the base)
+        // If right child is not stolen then he won't divide
+        // Else he will divide (ie. defer this to the base)
         let me = rayon::current_thread_index().unwrap_or(0);
-        (self.lower_limit > 0 || me != self.my_creator) && self.base.should_be_divided()
+        (!self.is_right || (self.is_right && me != self.my_creator))
+            && self.base.should_be_divided()
     }
 }
 
@@ -70,7 +74,6 @@ where
 
 pub struct JoinContextPolicy<I> {
     pub base: I,
-    pub lower_limit: u32,
 }
 
 impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
@@ -83,7 +86,6 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
     {
         struct Callback<CB> {
             callback: CB,
-            limit: u32,
         }
         impl<CB, T> ProducerCallback<T> for Callback<CB>
         where
@@ -96,14 +98,11 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
             {
                 self.callback.call(JoinContextPolicyProducer {
                     base: producer,
-                    lower_limit: self.limit,
+                    is_right: false,
                     my_creator: rayon::current_thread_index().unwrap_or(0),
                 })
             }
         }
-        self.base.with_producer(Callback {
-            callback,
-            limit: self.lower_limit,
-        })
+        self.base.with_producer(Callback { callback })
     }
 }
