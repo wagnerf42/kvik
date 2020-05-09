@@ -5,7 +5,7 @@ use rayon_try_fold::{iter_par_sort, slice_par_sort};
 const PROBLEM_SIZE: u32 = 1_000_000;
 fn main() {
     let tp = rayon::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(2)
         .build()
         .expect("Thread pool build failed");
     let mut input = (0..PROBLEM_SIZE).collect::<Vec<u32>>();
@@ -20,12 +20,12 @@ fn main() {
     #[cfg(feature = "logs")]
     {
         let tp = rayon_logs::ThreadPoolBuilder::new()
-            .num_threads(4)
+            .num_threads(2)
             .build()
             .expect("Thread pool build failed");
         let log = tp
             .logging_install(|| {
-                iter_par_sort(&mut input);
+                slice_par_sort(&mut input, 4, 2);
             })
             .1;
         log.save_svg("iter_par_sort.svg")
