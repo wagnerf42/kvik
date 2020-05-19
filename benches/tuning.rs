@@ -15,14 +15,13 @@ use criterion::{Criterion, ParameterizedBenchmark};
 const PROBLEM_SIZE: u32 = 100_000_000;
 
 fn sort_benchmarks(c: &mut Criterion) {
-    let num_threads: Vec<usize> = vec![4, 16, 34, 58];
-    let upper_bounds: Vec<u32> = vec![2, 4, 6, 8, 10];
-    let lower_bounds: Vec<u32> = vec![2, 4, 6, 8];
+    let num_threads: Vec<usize> = vec![4, 10, 16, 18, 33, 34, 40, 58];
+    let upper_bounds: Vec<u32> = vec![2, 4, 6, 8, 10, 12];
     c.bench(
         "tuning bounds",
         ParameterizedBenchmark::new(
             "slice sort",
-            |b, (nt, l, u)| {
+            |b, (nt, u)| {
                 b.iter_with_setup(
                     || {
                         let tp = rayon::ThreadPoolBuilder::new()
@@ -36,13 +35,13 @@ fn sort_benchmarks(c: &mut Criterion) {
                     },
                     |(tp, mut input)| {
                         tp.install(|| {
-                            slice_par_sort(&mut input, *u, *l);
+                            slice_par_sort(&mut input, *u);
                             input
                         });
                     },
                 )
             },
-            iproduct!(num_threads, lower_bounds, upper_bounds).filter(|(_, l, u)| u >= l),
+            iproduct!(num_threads, upper_bounds),
         ),
     );
 }
