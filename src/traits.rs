@@ -205,8 +205,8 @@ pub trait ParallelIterator: Sized {
     /// This policy controls the division of the producer inside (before) it.
     /// It will veto the division of the base producer iff:
     ///     The right child of any node is not stolen
-    fn join_context_policy(self) -> JoinContextPolicy<Self> {
-        JoinContextPolicy { base: self }
+    fn join_context_policy(self, limit: usize) -> JoinContextPolicy<Self> {
+        JoinContextPolicy { base: self, limit }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where
