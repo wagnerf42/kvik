@@ -12,9 +12,11 @@ pub(crate) trait AdaptiveProducer: Producer {
         F: Fn(B, Self::Item) -> B;
 }
 
-fn block_sizes() -> impl Iterator<Item = usize> {
+pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
     // TODO: cap
-    std::iter::successors(Some(1), |old| Some(std::cmp::min(std::usize::MAX, 2 * old)))
+    std::iter::successors(Some(1), |old: &usize| {
+        old.checked_shl(1).or(Some(std::usize::MAX))
+    })
 }
 
 pub struct Adaptive<I> {

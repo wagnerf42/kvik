@@ -1,17 +1,17 @@
-use crate::adaptive::Adaptive;
+use crate::adaptive::{block_sizes, Adaptive};
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
 use crate::join_context_policy::JoinContextPolicy;
 use crate::lower_bound::LowerBound;
 use crate::map::Map;
 use crate::merge::Merge;
-use crate::private_try::Try;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
 use crate::small_channel::small_channel;
 use crate::upper_bound::UpperBound;
 use crate::wrap::Wrap;
 use crate::zip::Zip;
+use crate::Try;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
@@ -96,6 +96,68 @@ pub trait Producer: Send + Iterator + Divisible {
 struct ReduceCallback<'f, OP, ID> {
     op: &'f OP,
     identity: &'f ID,
+}
+
+fn schedule_join_try_reduce<'f, P, T, OP, ID>(
+    mut producer: P,
+    reducer: &ReduceCallback<'f, OP, ID>,
+    stop: &AtomicBool,
+) -> P::Item
+where
+    P: Producer,
+    OP: Fn(T, T) -> P::Item + Sync + Send,
+    ID: Fn() -> P::Item + Sync + Send,
+    P::Item: Try<Ok = T> + Send,
+{
+    if stop.load(Ordering::Relaxed) {
+        (reducer.identity)()
+    } else {
+        if producer.should_be_divided() {
+            let (left, right) = producer.divide();
+            let (left_result, right_result) = rayon::join(
+                || schedule_join_try_reduce(left, reducer, stop),
+                || schedule_join_try_reduce(right, reducer, stop),
+            );
+            match left_result.into_result() {
+                Ok(left_ok) => match right_result.into_result() {
+                    Ok(right_ok) => {
+                        // TODO: should we also check the boolean here ?
+                        let final_result = (reducer.op)(left_ok, right_ok);
+                        match final_result.into_result() {
+                            Ok(f) => P::Item::from_ok(f),
+                            Err(e) => {
+                                stop.store(true, Ordering::Relaxed);
+                                P::Item::from_error(e)
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        stop.store(true, Ordering::Relaxed);
+                        P::Item::from_error(e)
+                    }
+                },
+                Err(e) => {
+                    stop.store(true, Ordering::Relaxed);
+                    P::Item::from_error(e)
+                }
+            }
+        } else {
+            let new_id = (reducer.identity)();
+            match new_id.into_result() {
+                Ok(t) => try_fold(&mut producer, t, |t, i| match i.into_result() {
+                    Ok(t2) => (reducer.op)(t, t2),
+                    Err(e) => {
+                        stop.store(true, Ordering::Relaxed);
+                        P::Item::from_error(e)
+                    }
+                }),
+                Err(e) => {
+                    stop.store(true, Ordering::Relaxed);
+                    P::Item::from_error(e)
+                }
+            }
+        }
+    }
 }
 
 fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<'f, OP, ID>) -> T
@@ -281,6 +343,11 @@ where
         ID: Fn() -> T + Sync + Send,
         Self::Item: Try<Ok = T>,
     {
+        let stop = AtomicBool::new(false);
+        let reducer = ReduceCallback {
+            identity: &identity,
+            op: &op,
+        };
         unimplemented!()
     }
 }
@@ -372,4 +439,24 @@ where
     fn par_iter_mut(&'data mut self) -> Self::Iter {
         self.into_par_iter()
     }
+}
+
+/// we need to re-implement it because it's not the real trait
+pub(crate) fn try_fold<I, B, F, R>(iterator: &mut I, init: B, mut f: F) -> R
+where
+    F: FnMut(B, I::Item) -> R,
+    R: Try<Ok = B>,
+    I: Iterator,
+{
+    let mut accum = init;
+    while let Some(x) = iterator.next() {
+        let accum_value = f(accum, x);
+        match accum_value.into_result() {
+            Ok(e) => {
+                accum = e;
+            }
+            Err(e) => return Try::from_error(e),
+        }
+    }
+    Try::from_ok(accum)
 }
