@@ -93,24 +93,29 @@ pub trait Producer: Send + Iterator + Divisible {
     fn preview(&self, index: usize) -> Self::Item;
 }
 
-struct ReduceCallback<'f, OP, ID> {
-    op: &'f OP,
-    identity: &'f ID,
+struct ReduceCallback<OP, ID> {
+    op: OP,
+    identity: ID,
 }
 
-fn schedule_join_try_reduce<'f, P, T, OP, ID>(
+struct TryReduceCallback<OP, ID> {
+    op: OP,
+    identity: ID,
+}
+
+fn schedule_join_try_reduce<P, T, OP, ID>(
     mut producer: P,
-    reducer: &ReduceCallback<'f, OP, ID>,
+    reducer: &TryReduceCallback<OP, ID>,
     stop: &AtomicBool,
 ) -> P::Item
 where
     P: Producer,
     OP: Fn(T, T) -> P::Item + Sync + Send,
-    ID: Fn() -> P::Item + Sync + Send,
+    ID: Fn() -> T + Sync + Send,
     P::Item: Try<Ok = T> + Send,
 {
     if stop.load(Ordering::Relaxed) {
-        (reducer.identity)()
+        P::Item::from_ok((reducer.identity)())
     } else {
         if producer.should_be_divided() {
             let (left, right) = producer.divide();
@@ -143,24 +148,18 @@ where
             }
         } else {
             let new_id = (reducer.identity)();
-            match new_id.into_result() {
-                Ok(t) => try_fold(&mut producer, t, |t, i| match i.into_result() {
-                    Ok(t2) => (reducer.op)(t, t2),
-                    Err(e) => {
-                        stop.store(true, Ordering::Relaxed);
-                        P::Item::from_error(e)
-                    }
-                }),
+            try_fold(&mut producer, new_id, |t, i| match i.into_result() {
+                Ok(t2) => (reducer.op)(t, t2),
                 Err(e) => {
                     stop.store(true, Ordering::Relaxed);
                     P::Item::from_error(e)
                 }
-            }
+            })
         }
     }
 }
 
-fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<'f, OP, ID>) -> T
+fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<OP, ID>) -> T
 where
     P: Producer<Item = T>,
     T: Send,
@@ -198,11 +197,11 @@ where
         );
         left_r.or(right_r).unwrap()
     } else {
-        producer.fold((reducer.identity)(), reducer.op)
+        producer.fold((reducer.identity)(), &reducer.op)
     }
 }
 
-impl<'f, T, OP, ID> ProducerCallback<T> for ReduceCallback<'f, OP, ID>
+impl<T, OP, ID> ProducerCallback<T> for ReduceCallback<OP, ID>
 where
     T: Send,
     OP: Fn(T, T) -> T + Sync + Send,
@@ -214,6 +213,22 @@ where
         P: Producer<Item = T>,
     {
         schedule_join(producer, &self)
+    }
+}
+
+impl<I, T, OP, ID> ProducerCallback<I> for TryReduceCallback<OP, ID>
+where
+    OP: Fn(T, T) -> I + Sync + Send,
+    ID: Fn() -> T + Sync + Send,
+    I: Try<Ok = T> + Send,
+{
+    type Output = I;
+    fn call<P>(self, producer: P) -> Self::Output
+    where
+        P: Producer<Item = I>,
+    {
+        let stop = AtomicBool::new(false);
+        schedule_join_try_reduce(producer, &self, &stop)
     }
 }
 
@@ -303,10 +318,7 @@ pub trait ParallelIterator: Sized {
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
         ID: Fn() -> Self::Item + Send + Sync,
     {
-        let reduce_cb = ReduceCallback {
-            op: &op,
-            identity: &identity,
-        };
+        let reduce_cb = ReduceCallback { op, identity };
         self.with_producer(reduce_cb)
     }
 
@@ -331,6 +343,18 @@ pub trait TryReducible: ParallelIterator {
         OP: Fn(T, T) -> Self::Item + Sync + Send,
         ID: Fn() -> T + Sync + Send,
         Self::Item: Try<Ok = T>;
+    //    fn all<P>(self, predicate: P) -> bool
+    //    where
+    //        P: Fn(Self::Item) -> bool + Sync + Send,
+    //    {
+    //        match self
+    //            .map(|e| if predicate(e) { Ok(()) } else { Err(()) })
+    //            .try_reduce(|| Ok(()), |_, _| Ok(()))
+    //        {
+    //            Ok(_) => true,
+    //            Err(_) => false,
+    //        }
+    //    }
 }
 
 impl<I> TryReducible for I
@@ -343,12 +367,8 @@ where
         ID: Fn() -> T + Sync + Send,
         Self::Item: Try<Ok = T>,
     {
-        let stop = AtomicBool::new(false);
-        let reducer = ReduceCallback {
-            identity: &identity,
-            op: &op,
-        };
-        unimplemented!()
+        let reducer = TryReduceCallback { identity, op };
+        self.with_producer(reducer)
     }
 }
 
