@@ -1,4 +1,4 @@
-use crate::adaptive::{block_sizes, Adaptive};
+use crate::adaptive::Adaptive;
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
 use crate::join_context_policy::JoinContextPolicy;
@@ -283,7 +283,7 @@ pub trait ParallelIterator: Sized {
     /// This policy controls the division of the producer inside (before) it.
     /// It will veto the division of the base producer iff:
     ///     The right child of any node is not stolen
-    fn join_context_policy(self, limit: usize) -> JoinContextPolicy<Self> {
+    fn join_context_policy(self, limit: u32) -> JoinContextPolicy<Self> {
         JoinContextPolicy { base: self, limit }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>

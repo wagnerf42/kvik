@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 struct JoinContextPolicyProducer<I> {
     base: I,
-    limit: usize,
+    limit: u32,
     is_right: bool,
     my_creator: usize,
 }
@@ -83,7 +83,7 @@ where
 
 pub struct JoinContextPolicy<I> {
     pub base: I,
-    pub limit: usize,
+    pub limit: u32,
 }
 
 impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
@@ -95,7 +95,7 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
         CB: ProducerCallback<Self::Item>,
     {
         struct Callback<CB> {
-            limit: usize,
+            limit: u32,
             callback: CB,
         }
         impl<CB, T> ProducerCallback<T> for Callback<CB>
