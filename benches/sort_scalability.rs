@@ -91,7 +91,7 @@ fn sort_benchmarks(c: &mut Criterion) {
 
 criterion_group! {
     name = benches;
-            config = Criterion::default().sample_size(15).warm_up_time(Duration::from_secs(1)).nresamples(1000);
+            config = Criterion::default().sample_size(10).warm_up_time(Duration::from_secs(1)).nresamples(1000);
                 targets = sort_benchmarks
 }
 criterion_main!(benches);
