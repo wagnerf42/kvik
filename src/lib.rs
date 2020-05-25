@@ -155,4 +155,16 @@ mod tests {
             .lower_bound(JP_SIZE)
             .reduce(|| (0..1), |left, _| left);
     }
+    #[test]
+    fn all_test() {
+        const PROBLEM_SIZE1: u64 = 1000;
+        assert!(!(0u64..PROBLEM_SIZE1)
+            .into_par_iter()
+            .all(|num| num.is_power_of_two()),);
+        const PROBLEM_SIZE2: u64 = 10;
+        assert!((0u64..PROBLEM_SIZE2)
+            .into_par_iter()
+            .map(|num| 2u64.pow(num as u32))
+            .all(|num| num.is_power_of_two()),);
+    }
 }

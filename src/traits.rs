@@ -343,18 +343,19 @@ pub trait TryReducible: ParallelIterator {
         OP: Fn(T, T) -> Self::Item + Sync + Send,
         ID: Fn() -> T + Sync + Send,
         Self::Item: Try<Ok = T>;
-    //    fn all<P>(self, predicate: P) -> bool
-    //    where
-    //        P: Fn(Self::Item) -> bool + Sync + Send,
-    //    {
-    //        match self
-    //            .map(|e| if predicate(e) { Ok(()) } else { Err(()) })
-    //            .try_reduce(|| Ok(()), |_, _| Ok(()))
-    //        {
-    //            Ok(_) => true,
-    //            Err(_) => false,
-    //        }
-    //    }
+    fn all<P>(self, predicate: P) -> bool
+    where
+        Self: ParallelIterator<Controlled = True>,
+        P: Fn(Self::Item) -> bool + Sync + Send,
+    {
+        match self
+            .map(|e| if predicate(e) { Ok(()) } else { Err(()) })
+            .try_reduce(|| (), |_, _| Ok(()))
+        {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
 }
 
 impl<I> TryReducible for I
