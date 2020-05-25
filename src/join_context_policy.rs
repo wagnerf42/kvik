@@ -2,6 +2,7 @@ use crate::prelude::*;
 
 struct JoinContextPolicyProducer<I> {
     base: I,
+    limit: u32,
     is_right: bool,
     my_creator: usize,
 }
@@ -27,11 +28,13 @@ where
         (
             JoinContextPolicyProducer {
                 base: left,
+                limit: self.limit.saturating_sub(1),
                 is_right: false,
                 my_creator: me,
             },
             JoinContextPolicyProducer {
                 base: right,
+                limit: self.limit.saturating_sub(1),
                 is_right: true,
                 my_creator: me,
             },
@@ -43,22 +46,28 @@ where
         (
             JoinContextPolicyProducer {
                 base: left,
+                limit: self.limit.saturating_sub(1),
                 is_right: false,
                 my_creator: me,
             },
             JoinContextPolicyProducer {
                 base: right,
+                limit: self.limit.saturating_sub(1),
                 is_right: true,
                 my_creator: me,
             },
         )
     }
     fn should_be_divided(&self) -> bool {
-        // Left children can always divide (ie. defer this to the base)
-        // If right child is not stolen then he won't divide
-        // Else he will divide (ie. defer this to the base)
+        //There is an upper limit to the depth of the division tree.
+        //If this limit has been reached, you don't divide.
+        //Else:
+        //  You don't divide if and only if you are on the right side and not stolen.
+        //In all cases, it is going to ask the base about division, so basically it just has veto
+        //powers
         let me = rayon::current_thread_index().unwrap_or(0);
-        (!self.is_right || (self.is_right && me != self.my_creator))
+        self.limit > 0
+            && (!self.is_right || (self.is_right && me != self.my_creator))
             && self.base.should_be_divided()
     }
 }
@@ -74,6 +83,7 @@ where
 
 pub struct JoinContextPolicy<I> {
     pub base: I,
+    pub limit: u32,
 }
 
 impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
@@ -85,6 +95,7 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
         CB: ProducerCallback<Self::Item>,
     {
         struct Callback<CB> {
+            limit: u32,
             callback: CB,
         }
         impl<CB, T> ProducerCallback<T> for Callback<CB>
@@ -97,12 +108,16 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
                 P: Producer<Item = T>,
             {
                 self.callback.call(JoinContextPolicyProducer {
+                    limit: self.limit,
                     base: producer,
                     is_right: false,
                     my_creator: rayon::current_thread_index().unwrap_or(0),
                 })
             }
         }
-        self.base.with_producer(Callback { callback })
+        self.base.with_producer(Callback {
+            callback,
+            limit: self.limit,
+        })
     }
 }

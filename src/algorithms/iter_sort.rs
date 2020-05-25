@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::slice::IterMut;
 #[cfg(feature = "logs")]
 use rayon_logs::subgraph;
 fn fuse_slices<'a: 'c, 'b: 'c, 'c, T: 'a + 'b>(s1: &'a mut [T], s2: &'b mut [T]) -> &'c mut [T] {
@@ -38,7 +37,7 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                 (left_slice, right_slice)
             }
         })
-        .upper_bound(std::cmp::min(
+        .join_context_policy(std::cmp::min(
             (2.0 * (rayon::current_num_threads() as f32).log2().ceil()
                 - (rayon::current_num_threads() as f32).log2().floor()) as u32,
             5u32,

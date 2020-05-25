@@ -125,7 +125,7 @@ impl<'a, T: 'a + Sync> Divisible for std::slice::IterMut<'a, T> {
 }
 
 impl<'a, T: 'a + Send + Sync> Producer for std::slice::IterMut<'a, T> {
-    fn preview(&self, index: usize) -> Self::Item {
+    fn preview(&self, _index: usize) -> Self::Item {
         panic!("mutable slices are not peekable");
     }
 }
