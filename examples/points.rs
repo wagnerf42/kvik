@@ -40,6 +40,7 @@ fn compute_closest(points: &Vec<Point>) -> f64 {
         .unwrap()
 }
 
+#[cfg(feature = "logs")]
 fn compute_closest_logged(points: &Vec<Point>) -> f64 {
     use rayon_try_fold::prelude::*;
 
@@ -63,6 +64,7 @@ fn compute_closest_logged(points: &Vec<Point>) -> f64 {
         .unwrap()
 }
 
+#[cfg(feature = "logs")]
 fn compute_closest_composed(points: &Vec<Point>) -> f64 {
     use rayon_try_fold::prelude::*;
 
