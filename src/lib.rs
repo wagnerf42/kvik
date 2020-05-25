@@ -168,4 +168,16 @@ mod tests {
             .map(|num| 2u64.pow(num as u32))
             .all(|num| num.is_power_of_two()),);
     }
+    #[test]
+    fn filter_test() {
+        const PROBLEM_SIZE: u64 = 1001;
+        let inp: Vec<u64> = (1u64..PROBLEM_SIZE).collect();
+        assert_eq!(
+            inp.into_par_iter()
+                .map(|&elem| elem)
+                .filter(|elem| elem % 2 == 0)
+                .reduce(|| 0, |l, r| l + r),
+            500 * 501
+        );
+    }
 }

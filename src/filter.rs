@@ -12,7 +12,7 @@ where
 {
     type Item = I::Item;
     type Controlled = I::Controlled;
-    type Enumerable = I::Enumerable;
+    type Enumerable = False;
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
@@ -61,7 +61,12 @@ where
         self.base.size_hint()
     }
     fn next(&mut self) -> Option<Self::Item> {
-        self.base.next().filter(self.filter)
+        while let Some(elem) = self.base.next() {
+            if (self.filter)(&elem) {
+                return Some(elem);
+            }
+        }
+        return None;
     }
 }
 
