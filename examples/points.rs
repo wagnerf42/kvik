@@ -25,24 +25,82 @@ fn create_random_points(size: usize) -> Vec<Point> {
         .collect::<Vec<Point>>()
 }
 
+fn compute_closest(points: &Vec<Point>) -> f64 {
+    use rayon::prelude::*;
+    points
+        .par_iter()
+        .enumerate()
+        .filter_map(|(i, a)| {
+            points[i + 1..]
+                .par_iter()
+                .map(|b| a.distance_to(b))
+                .min_by(|x, y| x.partial_cmp(y).unwrap())
+        })
+        .min_by(|x, y| x.partial_cmp(y).unwrap())
+        .unwrap()
+}
+
+fn compute_closest_logged(points: &Vec<Point>) -> f64 {
+    use rayon_try_fold::prelude::*;
+
+    let len = points.len();
+    let enumeration = 0..len as u64;
+
+    points
+        .par_iter()
+        .zip(enumeration)
+        .map(|(a, i)| {
+            rayon_logs::subgraph("inner", len - i as usize, || {
+                points[(i as usize) + 1..]
+                    .par_iter()
+                    .map(|b| a.distance_to(b))
+                    .min_by(|x, y| x.partial_cmp(y).unwrap())
+            })
+        })
+        .filter(|e| e.is_some())
+        .map(|e| e.unwrap())
+        .min_by(|x, y| x.partial_cmp(y).unwrap())
+        .unwrap()
+}
+
+fn compute_closest_composed(points: &Vec<Point>) -> f64 {
+    use rayon_try_fold::prelude::*;
+
+    let len = points.len();
+    let enumeration = 0..len as u64;
+
+    points
+        .par_iter()
+        .composed()
+        .zip(enumeration)
+        .map(|(a, i)| {
+            rayon_logs::subgraph("inner", len - i as usize, || {
+                points[(i as usize) + 1..]
+                    .par_iter()
+                    .composed()
+                    .map(|b| a.distance_to(b))
+                    .min_by(|x, y| x.partial_cmp(y).unwrap())
+            })
+        })
+        .filter(|e| e.is_some())
+        .map(|e| e.unwrap())
+        .min_by(|x, y| x.partial_cmp(y).unwrap())
+        .unwrap()
+}
+
 #[cfg(feature = "logs")]
 fn main() {
-    use rayon::prelude::*;
     let pool = rayon_logs::ThreadPoolBuilder::new()
+        .num_threads(4)
         .build()
         .expect("failed creating pool");
 
     let points = create_random_points(10);
 
+    let expected = compute_closest(&points);
     let (_, log) = pool.logging_install(|| {
-        let iter = points.par_iter().enumerate().filter_map(|(i, a)| {
-            let inner_iter = points[i + 1..].par_iter().map(|b| a.distance_to(b));
-            rayon_logs::Logged::new(inner_iter).min_by(|x, y| x.partial_cmp(y).unwrap())
-        });
-        let min = rayon_logs::Logged::new(iter)
-            .min_by(|x, y| x.partial_cmp(y).unwrap())
-            .unwrap();
-
+        let min = compute_closest_composed(&points);
+        assert_eq!(min, expected);
         println!("Closest points have a distance of {}", min);
     });
 

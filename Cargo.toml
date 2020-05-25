@@ -28,5 +28,4 @@ harness=false
 
 [dev_dependencies]
 criterion="*"
-thread_binder="*"
 itertools="*"

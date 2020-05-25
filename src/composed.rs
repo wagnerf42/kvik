@@ -1,10 +1,12 @@
 use crate::prelude::*;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Arc;
 
+pub static WORK_COUNT: AtomicU64 = AtomicU64::new(0);
+
 thread_local! {
-    pub static INHIBITOR: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    pub static ALLOW_PARALLELISM: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
 /// Tries to limit parallel composition by switching off the ability to
@@ -12,8 +14,6 @@ thread_local! {
 /// completion.
 pub struct Composed<I> {
     pub base: I,
-    pub inhib_upper: Arc<AtomicBool>,
-    pub inhib: AtomicBool,
 }
 
 impl<I: ParallelIterator> ParallelIterator for Composed<I> {
@@ -25,14 +25,33 @@ impl<I: ParallelIterator> ParallelIterator for Composed<I> {
     where
         CB: ProducerCallback<Self::Item>,
     {
-        self.base.with_producer(callback)
+        struct Callback<CB> {
+            callback: CB,
+        }
+        impl<CB, T> ProducerCallback<T> for Callback<CB>
+        where
+            CB: ProducerCallback<T>,
+        {
+            type Output = CB::Output;
+
+            fn call<P>(self, producer: P) -> Self::Output
+            where
+                P: Producer<Item = T>,
+            {
+                let initial_size = producer.length();
+                self.callback.call(ComposedProducer {
+                    base: producer,
+                    initial_size,
+                })
+            }
+        }
+        self.base.with_producer(Callback { callback })
     }
 }
 
-//TODO: add initial size
 struct ComposedProducer<I> {
     base: I,
-    inhib: Arc<AtomicBool>,
+    initial_size: usize,
 }
 
 impl<I> Iterator for ComposedProducer<I>
@@ -44,11 +63,16 @@ where
         self.base.next()
     }
 
-    fn fold<B, F>(self, init: B, f: F) -> B
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.base.size_hint()
+    }
+
+    fn fold<B, F>(mut self, init: B, f: F) -> B
     where
+        Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        //TODO: Update thread_local inhibitor
+        println!("fold in ComposedProducer");
         self.base.fold(init, f)
     }
 }
@@ -64,11 +88,11 @@ where
         (
             ComposedProducer {
                 base: left,
-                inhib: self.inhib.clone(),
+                initial_size: self.initial_size,
             },
             ComposedProducer {
                 base: right,
-                inhib: self.inhib.clone(),
+                initial_size: self.initial_size,
             },
         )
     }
@@ -78,16 +102,25 @@ where
         (
             ComposedProducer {
                 base: left,
-                inhib: self.inhib.clone(),
+                initial_size: self.initial_size,
             },
             ComposedProducer {
                 base: right,
-                inhib: self.inhib.clone(),
+                initial_size: self.initial_size,
             },
         )
     }
 
     fn should_be_divided(&self) -> bool {
-        self.inhib.load(Ordering::Relaxed) && self.base.should_be_divided()
+        self.base.should_be_divided()
+    }
+}
+
+impl<I> Producer for ComposedProducer<I>
+where
+    I: Producer,
+{
+    fn preview(&self, index: usize) -> Self::Item {
+        self.base.preview(index)
     }
 }

@@ -1,6 +1,7 @@
 use crate::adaptive::Adaptive;
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
+use crate::filter::Filter;
 use crate::join_context_policy::JoinContextPolicy;
 use crate::lower_bound::LowerBound;
 use crate::map::Map;
@@ -249,12 +250,36 @@ pub trait ParallelIterator: Sized {
     }
 
     fn composed(self) -> Composed<Self> {
-        let inhib_upper = crate::composed::INHIBITOR.with(|v| v.clone());
-        Composed {
-            base: self,
-            inhib: std::sync::atomic::AtomicBool::new(false),
-            inhib_upper,
-        }
+        Composed { base: self }
+    }
+
+    fn filter<F>(self, filter: F) -> Filter<Self, F>
+    where
+        F: Fn(&Self::Item) -> bool,
+    {
+        Filter { base: self, filter }
+    }
+
+    fn min_by<F>(self, compare: F) -> Option<Self::Item>
+    where
+        F: Fn(&Self::Item, &Self::Item) -> std::cmp::Ordering + Sync,
+    {
+        self.map(|i| Some(i)).reduce(
+            || None,
+            |a, b| {
+                if a.is_none() {
+                    b
+                } else if b.is_none() {
+                    a
+                } else {
+                    let (a, b) = (a.unwrap(), b.unwrap());
+                    match compare(&a, &b) {
+                        std::cmp::Ordering::Greater => Some(b),
+                        _ => Some(a),
+                    }
+                }
+            },
+        )
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
