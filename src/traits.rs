@@ -2,6 +2,7 @@ use crate::adaptive::Adaptive;
 use crate::composed::Composed;
 use crate::even_levels::EvenLevels;
 use crate::filter::Filter;
+use crate::fold::Fold;
 use crate::join_context_policy::JoinContextPolicy;
 use crate::lower_bound::LowerBound;
 use crate::map::Map;
@@ -334,11 +335,38 @@ pub trait ParallelIterator: Sized {
         Filter { base: self, filter }
     }
 
+    fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
+    where
+        F: Fn(T, Self::Item) -> T + Sync + Send,
+        ID: Fn() -> T + Sync + Send,
+        T: Send,
+    {
+        Fold {
+            base: self,
+            id: identity,
+            fold: fold_op,
+        }
+    }
+
     fn min_by<F>(self, compare: F) -> Option<Self::Item>
     where
         F: Fn(&Self::Item, &Self::Item) -> std::cmp::Ordering + Sync,
     {
-        self.map(|i| Some(i)).reduce(
+        // Rewritten with fold then reduce to avoid using a map
+        self.fold(
+            || None,
+            |a, b| {
+                if let Some(a) = a {
+                    match compare(&a, &b) {
+                        std::cmp::Ordering::Greater => Some(b),
+                        _ => Some(a),
+                    }
+                } else {
+                    Some(b)
+                }
+            },
+        )
+        .reduce(
             || None,
             |a, b| {
                 if a.is_none() {

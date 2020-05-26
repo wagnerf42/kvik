@@ -73,19 +73,19 @@ fn compute_closest_composed(points: &Vec<Point>) -> f64 {
 
     points
         .par_iter()
-        .composed()
         .zip(enumeration)
         .map(|(a, i)| {
             rayon_logs::subgraph("inner", len - i as usize, || {
                 points[(i as usize) + 1..]
                     .par_iter()
-                    .composed()
                     .map(|b| a.distance_to(b))
+                    .composed()
                     .min_by(|x, y| x.partial_cmp(y).unwrap())
             })
         })
         .filter(|e| e.is_some())
         .map(|e| e.unwrap())
+        .composed()
         .min_by(|x, y| x.partial_cmp(y).unwrap())
         .unwrap()
 }
