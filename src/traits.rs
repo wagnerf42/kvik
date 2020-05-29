@@ -325,7 +325,10 @@ pub trait ParallelIterator: Sized {
     }
 
     fn composed(self) -> Composed<Self> {
-        Composed { base: self }
+        Composed {
+            base: self,
+            counter: std::sync::atomic::AtomicU64::new(0),
+        }
     }
 
     fn filter<F>(self, filter: F) -> Filter<Self, F>
