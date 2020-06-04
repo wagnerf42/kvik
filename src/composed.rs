@@ -7,6 +7,8 @@ thread_local! {
     pub static ALLOW_PARALLELISM: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
+static LIMIT: f64 = 0.9;
+
 /// Tries to limit parallel composition by switching off the ability to
 /// divide in parallel after a certain level of composition and upper task
 /// completion.
@@ -78,22 +80,27 @@ where
         F: FnMut(B, Self::Item) -> B,
     {
         let next_work_size = self.base.size_hint().0;
-        let previous_total_work = self.work_count.load(Ordering::Relaxed);
 
-        if ((next_work_size as f64 + previous_total_work as f64) / self.initial_size as f64) < 0.9 {
-            ALLOW_PARALLELISM.with(|b| b.store(false, Ordering::Relaxed));
-        } else {
-            ALLOW_PARALLELISM.with(|b| b.store(true, Ordering::Relaxed));
-        }
+        let current_total_work = self.work_count.load(Ordering::Relaxed);
 
-        let result = self.base.fold(init, f);
+        ALLOW_PARALLELISM.with(|b| {
+            let allowed = b.load(Ordering::Relaxed);
+            if allowed {
+                if (current_total_work as f64) / (self.initial_size as f64) < LIMIT {
+                    b.store(false, Ordering::Relaxed);
+                }
+            }
 
-        ALLOW_PARALLELISM.with(|b| b.fetch_and(true, Ordering::Relaxed));
+            self.work_count
+                .fetch_add(next_work_size as u64, Ordering::Relaxed);
+            let result = self.base.fold(init, f);
 
-        self.work_count
-            .fetch_add(next_work_size as u64, Ordering::Relaxed);
+            if allowed {
+                b.store(true, Ordering::Relaxed);
+            }
 
-        result
+            result
+        })
     }
 }
 
@@ -136,7 +143,27 @@ where
     }
 
     fn should_be_divided(&self) -> bool {
-        ALLOW_PARALLELISM.with(|b| b.load(Ordering::Relaxed) && self.base.should_be_divided())
+        let my_size = self.size_hint().0 as f64;
+        let work_count = self.work_count.load(Ordering::Relaxed) as f64;
+        let total_work = self.initial_size as f64;
+
+        let at_limit = (my_size + work_count) / total_work > LIMIT
+            && work_count / total_work < LIMIT
+            && my_size > 1.0;
+
+        ALLOW_PARALLELISM.with(|b| {
+            let base = self.base.should_be_divided();
+            let allowed = b.load(Ordering::Relaxed);
+            let result = allowed && {
+                let result = base || at_limit;
+                if result && !base {
+                    rayon_logs::subgraph("limite", 1, || ())
+                }
+                result
+            };
+
+            result
+        })
     }
 }
 

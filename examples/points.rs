@@ -51,15 +51,15 @@ fn compute_closest_logged(points: &Vec<Point>) -> f64 {
         .par_iter()
         .zip(enumeration)
         .map(|(a, i)| {
-            rayon_logs::subgraph("inner", len - i as usize, || {
-                points[(i as usize) + 1..]
-                    .par_iter()
-                    .map(|b| a.distance_to(b))
-                    .min_by(|x, y| x.partial_cmp(y).unwrap())
-            })
+            points[(i as usize) + 1..]
+                .par_iter()
+                .map(|b| a.distance_to(b))
+                //.log("inner")
+                .min_by(|x, y| x.partial_cmp(y).unwrap())
         })
         .filter(|e| e.is_some())
         .map(|e| e.unwrap())
+        .log("outer")
         .min_by(|x, y| x.partial_cmp(y).unwrap())
         .unwrap()
 }
@@ -78,19 +78,48 @@ fn compute_closest_composed(points: &Vec<Point>) -> f64 {
         .par_iter()
         .zip(enumeration)
         .map(|(a, i)| {
-            rayon_logs::subgraph("inner", len - i as usize, || {
-                points[(i as usize) + 1..]
-                    .par_iter()
-                    .map(|b| a.distance_to(b))
-                    .rayon(limit)
-                    .composed()
-                    .min_by(|x, y| x.partial_cmp(y).unwrap())
-            })
+            points[(i as usize) + 1..]
+                .par_iter()
+                .map(|b| a.distance_to(b))
+                .rayon(limit)
+                .composed()
+                //.log("inner")
+                .min_by(|x, y| x.partial_cmp(y).unwrap())
         })
         .filter(|e| e.is_some())
         .map(|e| e.unwrap())
         .rayon(limit)
         .composed()
+        //.log("outer")
+        .min_by(|x, y| x.partial_cmp(y).unwrap())
+        .unwrap()
+}
+
+#[cfg(feature = "logs")]
+fn compute_closest_rayon(points: &Vec<Point>) -> f64 {
+    use rayon_try_fold::prelude::*;
+
+    let len = points.len();
+    let enumeration = 0..len as u64;
+
+    let threads = rayon::current_num_threads();
+    let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
+
+    points
+        .par_iter()
+        .zip(enumeration)
+        .map(|(a, i)| {
+            points[(i as usize) + 1..]
+                .par_iter()
+                .map(|b| a.distance_to(b))
+                .rayon(limit)
+                //.log("inner")
+                .min_by(|x, y| x.partial_cmp(y).unwrap())
+        })
+        .filter(|e| e.is_some())
+        .map(|e| e.unwrap())
+        .rayon(limit)
+        //.log("outer")
         .min_by(|x, y| x.partial_cmp(y).unwrap())
         .unwrap()
 }
@@ -98,7 +127,7 @@ fn compute_closest_composed(points: &Vec<Point>) -> f64 {
 #[cfg(feature = "logs")]
 fn main() {
     let pool = rayon_logs::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(3)
         .build()
         .expect("failed creating pool");
 
@@ -106,18 +135,12 @@ fn main() {
 
     let expected = compute_closest(&points);
 
-    pool.compare()
-        .runs_number(10)
-        .attach_algorithm_nodisplay("without composed", || {
-            let min = compute_closest_logged(&points);
-            assert_eq!(expected, min);
-        })
-        .attach_algorithm_nodisplay("with composed", || {
-            let min = compute_closest_composed(&points);
-            assert_eq!(expected, min);
-        })
-        .generate_logs("report.html")
-        .expect("failed saving logs");
+    let (_, log) = pool.logging_install(|| {
+        let min = compute_closest_composed(&points);
+        assert_eq!(expected, min);
+    });
+
+    log.save_svg("composed.svg").expect("failed saving svg");
 }
 
 #[cfg(not(feature = "logs"))]

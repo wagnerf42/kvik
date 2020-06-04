@@ -16,6 +16,7 @@ mod even_levels;
 mod filter;
 mod fold;
 mod join_context_policy;
+mod log;
 mod macro_blocks;
 mod map;
 mod merge;

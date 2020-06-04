@@ -64,7 +64,8 @@ impl<I: Iterator> Iterator for RayonProducer<I> {
 impl<I: Divisible> Divisible for RayonProducer<I> {
     type Controlled = I::Controlled;
     fn should_be_divided(&self) -> bool {
-        self.counter != 0 && self.base.should_be_divided()
+        (self.counter != 0 || self.created_by != rayon::current_thread_index().unwrap())
+            && self.base.should_be_divided()
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
@@ -76,7 +77,7 @@ impl<I: Divisible> Divisible for RayonProducer<I> {
                 self.counter - 1
             }
         } else {
-            self.reset_counter
+            self.reset_counter - 1
         };
         (
             RayonProducer {
@@ -103,7 +104,7 @@ impl<I: Divisible> Divisible for RayonProducer<I> {
                 self.counter - 1
             }
         } else {
-            self.reset_counter
+            self.reset_counter - 1
         };
         (
             RayonProducer {

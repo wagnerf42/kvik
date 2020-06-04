@@ -4,6 +4,7 @@ use crate::even_levels::EvenLevels;
 use crate::filter::Filter;
 use crate::fold::Fold;
 use crate::join_context_policy::JoinContextPolicy;
+use crate::log::Log;
 use crate::lower_bound::LowerBound;
 use crate::map::Map;
 use crate::merge::Merge;
@@ -385,6 +386,11 @@ pub trait ParallelIterator: Sized {
                 }
             },
         )
+    }
+
+    #[cfg(feature = "logs")]
+    fn log(self, name: &'static str) -> Log<Self> {
+        Log { base: self, name }
     }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
