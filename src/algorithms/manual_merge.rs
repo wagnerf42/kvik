@@ -250,6 +250,8 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
     left: &mut [T],
     right: &mut [T],
     output: &mut [T],
+    lower: usize,
+    upper: usize,
 ) {
     let merger = Merger {
         a: left,
@@ -265,5 +267,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
         |m| m.divide(),
         |m, s| m.manual_merge(s),
         |m| m.check_triviality(),
+        lower,
+        upper,
     );
 }

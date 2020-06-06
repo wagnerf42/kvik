@@ -10,12 +10,19 @@ pub(crate) trait AdaptiveProducer: Producer {
     where
         B: Send,
         F: Fn(B, Self::Item) -> B;
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        (1, usize::MAX)
+    }
 }
 
-pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
+pub(crate) fn block_sizes(lower: usize, upper: usize) -> impl Iterator<Item = usize> {
     // TODO: cap
-    std::iter::successors(Some(1), |old: &usize| {
-        old.checked_shl(1).or(Some(std::usize::MAX))
+    std::iter::successors(Some(lower), move |old: &usize| {
+        if *old >= upper {
+            Some(upper)
+        } else {
+            old.checked_shl(1).or(Some(std::usize::MAX))
+        }
     })
 }
 
@@ -59,8 +66,9 @@ where
     P: AdaptiveProducer<Item = T>,
 {
     let (sender, receiver) = small_channel();
+    let (lower, upper) = producer.micro_block_sizes();
     let (left_result, maybe_right_result): (T, Option<T>) = rayon::join_context(
-        |_| match block_sizes()
+        |_| match block_sizes(lower, upper)
             .take_while(|_| !sender.receiver_is_waiting())
             .try_fold((producer, output), |(mut producer, output), s| {
                 //TODO: is this the right way to test for the end ?
@@ -160,6 +168,8 @@ struct Worker<'f, S, C, D, W, SD> {
     divide: &'f D,
     should_divide: &'f SD,
     work: &'f W,
+    lower: usize,
+    upper: usize,
 }
 
 impl<'f, S, C, D, W, SD> Iterator for Worker<'f, S, C, D, W, SD>
@@ -201,6 +211,8 @@ where
                 divide: self.divide,
                 should_divide: self.should_divide,
                 work: self.work,
+                lower: self.lower,
+                upper: self.upper,
             },
             Worker {
                 state: right,
@@ -208,6 +220,8 @@ where
                 should_divide: self.should_divide,
                 divide: self.divide,
                 work: self.work,
+                lower: self.lower,
+                upper: self.upper,
             },
         )
     }
@@ -248,10 +262,20 @@ where
         (self.work)(&mut self.state, limit);
         init
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        (self.lower, self.upper)
+    }
 }
 
-pub fn work<S, C, D, W, SD>(init: S, completed: C, divide: D, work: W, should_be_divided: SD)
-where
+pub fn work<S, C, D, W, SD>(
+    init: S,
+    completed: C,
+    divide: D,
+    work: W,
+    should_be_divided: SD,
+    lower: usize,
+    upper: usize,
+) where
     S: Send,
     C: Fn(&S) -> bool + Sync,
     D: Fn(S) -> (S, S) + Sync,
@@ -264,6 +288,8 @@ where
         divide: &divide,
         work: &work,
         should_divide: &should_be_divided,
+        lower,
+        upper,
     };
     let identity = || ();
     let op = |_, _| ();
