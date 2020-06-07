@@ -15,14 +15,13 @@ use criterion::{Criterion, ParameterizedBenchmark};
 fn sort_benchmarks(c: &mut Criterion) {
     //let sizes: Vec<u32> = vec![100_000];
     let sizes: Vec<u32> = vec![100_000_000];
-    let lower_limits: Vec<usize> = vec![512, 1024, 2048];
-    let upper_fractional_limits: Vec<usize> = vec![10, 100, 1000];
-    let threads: Vec<usize> = vec![16, 54];
+    let upper_fractional_limits: Vec<usize> = vec![100, 1000, 10_000];
+    let threads: Vec<usize> = vec![10, 16, 44];
     c.bench(
         "random input",
         ParameterizedBenchmark::new(
             "slice par sort",
-            |b, (input_size, lower, upper, threads)| {
+            |b, (input_size, upper, threads)| {
                 b.iter_with_setup(
                     || {
                         let tp = rayon::ThreadPoolBuilder::new()
@@ -32,16 +31,16 @@ fn sort_benchmarks(c: &mut Criterion) {
                         let mut input = (0..*input_size).collect::<Vec<_>>();
                         let mut rng = rand::thread_rng();
                         input.shuffle(&mut rng);
-                        (tp, input, *lower, *input_size as usize / upper)
+                        (tp, input, *input_size as usize / upper)
                     },
-                    |(tp, mut input, lower, upper)| {
+                    |(tp, mut input, upper)| {
                         tp.install(|| {
-                            slice_par_sort(&mut input, lower, upper);
+                            slice_par_sort(&mut input, 1024, upper);
                         });
                     },
                 )
             },
-            iproduct!(sizes, lower_limits, upper_fractional_limits, threads),
+            iproduct!(sizes, upper_fractional_limits, threads),
         ),
     );
 }
