@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use rayon_try_fold::{iter_par_sort, slice_par_sort};
 use std::time::Duration;
 
-use criterion::{Criterion, ParameterizedBenchmark};
+use criterion::{Benchmark, Criterion, ParameterizedBenchmark};
 
 const PROBLEM_SIZE: u32 = 100_000_000;
 
@@ -20,6 +20,29 @@ fn sort_benchmarks(c: &mut Criterion) {
         1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46,
         48, 50, 52, 54, 56, 58, 60, 64,
     ];
+    c.bench(
+        "sort baseline",
+        Benchmark::new("sequential sort", |b| {
+            b.iter_with_setup(
+                || {
+                    let tp = rayon::ThreadPoolBuilder::new()
+                        .num_threads(1)
+                        .build()
+                        .expect("Couldn't build thread pool");
+                    let mut input = (0..PROBLEM_SIZE).collect::<Vec<_>>();
+                    let mut rng = rand::thread_rng();
+                    input.shuffle(&mut rng);
+                    (tp, input)
+                },
+                |(tp, mut input)| {
+                    tp.install(|| {
+                        input.sort();
+                        input
+                    });
+                },
+            )
+        }),
+    );
     c.bench(
         "sort scalability",
         ParameterizedBenchmark::new(
