@@ -90,7 +90,7 @@ fn compute_closest_composed(points: &Vec<Point>) -> f64 {
         .map(|e| e.unwrap())
         .rayon(limit)
         .composed()
-        //.log("outer")
+        .log("outer")
         .min_by(|x, y| x.partial_cmp(y).unwrap())
         .unwrap()
 }

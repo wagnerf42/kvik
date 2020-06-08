@@ -4,7 +4,6 @@ use crate::even_levels::EvenLevels;
 use crate::filter::Filter;
 use crate::fold::Fold;
 use crate::join_context_policy::JoinContextPolicy;
-use crate::log::Log;
 use crate::lower_bound::LowerBound;
 use crate::map::Map;
 use crate::merge::Merge;
@@ -18,6 +17,8 @@ use crate::Try;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+#[cfg(feature = "logs")]
+use crate::log::Log;
 // Iterators have different properties
 // which allow for specialisation of some algorithms.
 //

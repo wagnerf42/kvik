@@ -1,4 +1,6 @@
 use crate::prelude::*;
+#[cfg(feature = "logs")]
+extern crate rayon_logs;
 
 #[cfg(feature = "logs")]
 pub struct Log<I> {
@@ -6,6 +8,7 @@ pub struct Log<I> {
     pub name: &'static str,
 }
 
+#[cfg(feature = "logs")]
 impl<'a, I: ParallelIterator> ParallelIterator for Log<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
@@ -50,6 +53,7 @@ struct LogProducer<I> {
     name: &'static str,
 }
 
+#[cfg(feature = "logs")]
 impl<I> Iterator for LogProducer<I>
 where
     I: Iterator,
@@ -73,6 +77,7 @@ where
     }
 }
 
+#[cfg(feature = "logs")]
 impl<I> Divisible for LogProducer<I>
 where
     I: Producer,
@@ -112,6 +117,7 @@ where
     }
 }
 
+#[cfg(feature = "logs")]
 impl<I> Producer for LogProducer<I>
 where
     I: Producer,

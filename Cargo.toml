@@ -26,6 +26,10 @@ harness=false
 name="sort_scalability"
 harness=false
 
+[[bench]]
+name="composed"
+harness=false
+
 [dev_dependencies]
 criterion="*"
 itertools="*"
