@@ -7,6 +7,8 @@ thread_local! {
     pub static ALLOW_PARALLELISM: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
+const LIMIT: f64 = 0.9;
+
 /// Tries to limit parallel composition by switching off the ability to
 /// divide in parallel after a certain level of composition and upper task
 /// completion.
@@ -59,6 +61,19 @@ struct ComposedProducer<'a, I> {
     work_count: &'a AtomicU64,
 }
 
+impl<'a, I> ComposedProducer<'a, I>
+where
+    Self: Iterator,
+{
+    fn at_limit(&self) -> bool {
+        let my_size = self.size_hint().0;
+        let work_count = self.work_count.load(Ordering::Relaxed) as usize;
+        let total_work = (self.initial_size as f64 * LIMIT) as usize;
+
+        my_size + work_count >= total_work && work_count < total_work
+    }
+}
+
 impl<'a, I> Iterator for ComposedProducer<'a, I>
 where
     I: Iterator,
@@ -78,13 +93,15 @@ where
         F: FnMut(B, Self::Item) -> B,
     {
         let next_work_size = self.base.size_hint().0;
-
-        let current_total_work = self.work_count.load(Ordering::Relaxed);
+        let at_limit = self.at_limit();
 
         ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
             if allowed {
-                if next_work_size + current_total_work as usize != self.initial_size {
+                if at_limit && self.size_hint().0 > 1 {
+                    println!("problem");
+                }
+                if (!at_limit) && next_work_size > 1 {
                     b.store(false, Ordering::Relaxed);
                 }
             }
@@ -141,17 +158,13 @@ where
     }
 
     fn should_be_divided(&self) -> bool {
-        let my_size = self.size_hint().0;
-        let work_count = self.work_count.load(Ordering::Relaxed) as usize;
-        let total_work = self.initial_size;
-
-        let at_limit =
-            my_size + work_count == total_work && work_count != total_work && my_size > 1;
+        let at_limit = self.at_limit() && self.size_hint().0 > 1;
 
         ALLOW_PARALLELISM.with(|b| {
             let base = self.base.should_be_divided();
             let allowed = b.load(Ordering::Relaxed);
-            allowed && (base || at_limit)
+
+            allowed && (at_limit || base)
         })
     }
 }
