@@ -38,7 +38,7 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T], lower: usize
                 (left_slice, right_slice)
             }
         })
-        .join_policy(std::cmp::min(
+        .upper_bound(std::cmp::min(
             (2.0 * (rayon::current_num_threads() as f32).log2().ceil()
                 - (rayon::current_num_threads() as f32).log2().floor()) as u32,
             5u32,
