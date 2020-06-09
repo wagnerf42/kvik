@@ -83,7 +83,7 @@ fn sort_benchmarks(c: &mut Criterion) {
                 },
                 |(tp, mut input)| {
                     tp.install(|| {
-                        slice_par_sort(&mut input, 1024, 10_000);
+                        slice_par_sort(&mut input, 1, usize::MAX);
                         input
                     });
                 },
