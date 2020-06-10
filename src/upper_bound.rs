@@ -11,6 +11,9 @@ where
     I: Iterator,
 {
     type Item = I::Item;
+    fn size_hint(&self) -> (usize, Option<usize>) {
+	self.base.size_hint()
+    }
     fn next(&mut self) -> Option<Self::Item> {
         self.base.next()
     }

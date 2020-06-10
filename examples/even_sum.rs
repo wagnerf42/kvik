@@ -44,10 +44,35 @@ fn composed(vec: &Vec<Vec<u64>>) -> usize {
                 .composed()
                 .reduce(|| 0, |a, b| a + b);
             ((sum + 1) % 2) as usize
+	    
         })
         .fold(|| 0, |a, b| a + b)
-        .rayon(limit)
-        .composed()
+	.rayon(limit)
+	.composed()
+        .log("outer")
+        .reduce(|| 0, |a, b| a + b)
+}
+
+fn composed_counter(vec: &Vec<Vec<u64>>) -> usize {
+    use rayon_try_fold::prelude::*;
+
+    let threads = rayon::current_num_threads();
+    let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
+
+    vec.par_iter()
+        .map(|v: &Vec<u64>| {
+            let sum = v
+                .par_iter()
+                .fold(|| 0u64, |a, b| a + b)
+                .rayon(limit)
+                .composed_counter(2 * threads)
+                .reduce(|| 0, |a, b| a + b);
+            ((sum + 1) % 2) as usize
+	    
+        })
+        .fold(|| 0, |a, b| a + b)
+	.rayon(limit)
+	.composed_counter(2 * threads)
         .log("outer")
         .reduce(|| 0, |a, b| a + b)
 }
@@ -90,20 +115,44 @@ fn rayon_outer(vec: &Vec<Vec<u64>>) -> usize {
 
 #[cfg(feature = "logs")]
 fn main() {
+    let threads = 4;
     let pool = rayon_logs::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(threads)
         .build()
         .expect("Failed to create thread pool");
 
-    let vec = problematic_vec(1024, 10, 20000);
+    let vec = problematic_vec(1000, 1000, 10000000);
     let expected = seq(&vec);
 
+    /*
     let (_, log) = pool.logging_install(|| {
         let res = composed(&vec);
         assert_eq!(expected, res);
     });
-
     log.save_svg("even_sum.svg").expect("Failed to save svg");
+     */
+
+    pool
+	.compare()
+	.runs_number(10)
+	.attach_algorithm_with_setup("without counter", || {
+	    let vec = problematic_vec(1000, 1000, 1000000);
+	    let expected = seq(&vec);
+	    (vec, expected)
+	}, |(v, e)| {
+	    let res = composed(&v);
+	    assert_eq!(e, res);
+	})
+	.attach_algorithm_with_setup("with counter", || {
+	    let vec = problematic_vec(1000, 1000, 1000000);
+	    let expected = seq(&vec);
+	    (vec, expected)
+	}, |(v, e)| {
+	    let res = composed_counter(&v);
+	    assert_eq!(e, res);
+	})
+	
+	.generate_logs("log.html").expect("failed to generate logs");
 }
 
 #[cfg(not(feature = "logs"))]

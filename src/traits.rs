@@ -1,5 +1,6 @@
 use crate::adaptive::Adaptive;
 use crate::composed::Composed;
+use crate::composed_counter::ComposedCounter;
 use crate::even_levels::EvenLevels;
 use crate::filter::Filter;
 use crate::fold::Fold;
@@ -327,9 +328,16 @@ pub trait ParallelIterator: Sized {
     }
 
     fn composed(self) -> Composed<Self> {
-        Composed {
+	Composed {
+	    base: self,
+	}
+    }
+    
+    fn composed_counter(self, threshold: usize) -> ComposedCounter<Self> {
+        ComposedCounter {
             base: self,
             counter: std::sync::atomic::AtomicU64::new(0),
+	    threshold,
         }
     }
 
