@@ -27,6 +27,7 @@ fn seq(vec: &Vec<Vec<u64>>) -> usize {
         .sum()
 }
 
+#[cfg(feature = "logs")]
 fn composed(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
@@ -50,6 +51,7 @@ fn composed(vec: &Vec<Vec<u64>>) -> usize {
         .reduce(|| 0, |a, b| a + b)
 }
 
+#[cfg(feature = "logs")]
 fn composed_counter(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
@@ -73,6 +75,7 @@ fn composed_counter(vec: &Vec<Vec<u64>>) -> usize {
         .reduce(|| 0, |a, b| a + b)
 }
 
+#[cfg(feature = "logs")]
 fn rayon_both(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
@@ -93,6 +96,7 @@ fn rayon_both(vec: &Vec<Vec<u64>>) -> usize {
         .reduce(|| 0, |a, b| a + b)
 }
 
+#[cfg(feature = "logs")]
 fn rayon_outer(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
@@ -110,6 +114,7 @@ fn rayon_outer(vec: &Vec<Vec<u64>>) -> usize {
         .reduce(|| 0, |a, b| a + b)
 }
 
+#[cfg(feature = "logs")]
 fn rayon_outer_sum(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
