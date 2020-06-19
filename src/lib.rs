@@ -12,6 +12,7 @@ pub use algorithms::iter_sort::iter_par_sort;
 pub use algorithms::manual_merge::adaptive_slice_merge;
 pub use algorithms::slice_merge_sort::slice_par_sort;
 mod composed;
+mod composed_counter;
 mod even_levels;
 mod filter;
 mod fold;
