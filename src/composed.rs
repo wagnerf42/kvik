@@ -1,18 +1,17 @@
 use crate::prelude::*;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Arc;
 
 thread_local! {
     pub static ALLOW_PARALLELISM: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
-
 /// Tries to limit parallel composition by switching off the ability to
 /// divide in parallel after a certain level of composition and upper task
 /// completion.
 pub struct Composed<I> {
-    pub base: I
+    pub base: I,
 }
 
 impl<I: ParallelIterator> ParallelIterator for Composed<I> {
@@ -25,7 +24,7 @@ impl<I: ParallelIterator> ParallelIterator for Composed<I> {
         CB: ProducerCallback<Self::Item>,
     {
         struct Callback<CB> {
-            callback: CB
+            callback: CB,
         }
         impl<CB, T> ProducerCallback<T> for Callback<CB>
         where
@@ -37,20 +36,15 @@ impl<I: ParallelIterator> ParallelIterator for Composed<I> {
             where
                 P: Producer<Item = T>,
             {
-                let initial_size = producer.length();
-                self.callback.call(ComposedProducer {
-                    base: producer,
-                })
+                self.callback.call(ComposedProducer { base: producer })
             }
         }
-        self.base.with_producer(Callback {
-            callback
-	})
+        self.base.with_producer(Callback { callback })
     }
 }
 
 struct ComposedProducer<I> {
-    base: I
+    base: I,
 }
 
 impl<I> Iterator for ComposedProducer<I>
@@ -82,8 +76,9 @@ where
             }
 
             let result = self.base.fold(init, f);
+
             b.store(allowed, Ordering::Relaxed);
-           
+
             result
         })
     }
@@ -98,31 +93,21 @@ where
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
-            ComposedProducer {
-                base: left,
-            },
-            ComposedProducer {
-                base: right,
-            },
+            ComposedProducer { base: left },
+            ComposedProducer { base: right },
         )
     }
 
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
         (
-            ComposedProducer {
-                base: left,
-            },
-            ComposedProducer {
-                base: right,
-            },
+            ComposedProducer { base: left },
+            ComposedProducer { base: right },
         )
     }
 
     fn should_be_divided(&self) -> bool {
-	ALLOW_PARALLELISM.with(|b| {
-	    b.load(Ordering::Relaxed) && self.base.should_be_divided()
-	})
+        ALLOW_PARALLELISM.with(|b| b.load(Ordering::Relaxed) && self.base.should_be_divided())
     }
 }
 

@@ -328,16 +328,14 @@ pub trait ParallelIterator: Sized {
     }
 
     fn composed(self) -> Composed<Self> {
-	Composed {
-	    base: self,
-	}
+        Composed { base: self }
     }
-    
+
     fn composed_counter(self, threshold: usize) -> ComposedCounter<Self> {
         ComposedCounter {
             base: self,
             counter: std::sync::atomic::AtomicU64::new(0),
-	    threshold,
+            threshold,
         }
     }
 
