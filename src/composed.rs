@@ -1,6 +1,6 @@
 use crate::prelude::*;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::Arc;
 
 thread_local! {
@@ -12,7 +12,6 @@ thread_local! {
 /// completion.
 pub struct Composed<I> {
     pub base: I,
-    pub counter: AtomicU64,
 }
 
 impl<I: ParallelIterator> ParallelIterator for Composed<I> {
@@ -24,11 +23,10 @@ impl<I: ParallelIterator> ParallelIterator for Composed<I> {
     where
         CB: ProducerCallback<Self::Item>,
     {
-        struct Callback<'a, CB> {
+        struct Callback<CB> {
             callback: CB,
-            counter_ref: &'a AtomicU64,
         }
-        impl<'a, CB, T> ProducerCallback<T> for Callback<'a, CB>
+        impl<CB, T> ProducerCallback<T> for Callback<CB>
         where
             CB: ProducerCallback<T>,
         {
@@ -38,28 +36,18 @@ impl<I: ParallelIterator> ParallelIterator for Composed<I> {
             where
                 P: Producer<Item = T>,
             {
-                let initial_size = producer.length();
-                self.callback.call(ComposedProducer {
-                    base: producer,
-                    initial_size,
-                    work_count: self.counter_ref,
-                })
+                self.callback.call(ComposedProducer { base: producer })
             }
         }
-        self.base.with_producer(Callback {
-            callback,
-            counter_ref: &self.counter,
-        })
+        self.base.with_producer(Callback { callback })
     }
 }
 
-struct ComposedProducer<'a, I> {
+struct ComposedProducer<I> {
     base: I,
-    initial_size: usize,
-    work_count: &'a AtomicU64,
 }
 
-impl<'a, I> Iterator for ComposedProducer<'a, I>
+impl<I> Iterator for ComposedProducer<I>
 where
     I: Iterator,
 {
@@ -79,30 +67,24 @@ where
     {
         let next_work_size = self.base.size_hint().0;
 
-        let current_total_work = self.work_count.load(Ordering::Relaxed);
-
         ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
             if allowed {
-                if next_work_size + current_total_work as usize != self.initial_size {
+                if next_work_size > 1 {
                     b.store(false, Ordering::Relaxed);
                 }
             }
 
-            self.work_count
-                .fetch_add(next_work_size as u64, Ordering::Relaxed);
             let result = self.base.fold(init, f);
 
-            if allowed {
-                b.store(true, Ordering::Relaxed);
-            }
+            b.store(allowed, Ordering::Relaxed);
 
             result
         })
     }
 }
 
-impl<'a, I> Divisible for ComposedProducer<'a, I>
+impl<I> Divisible for ComposedProducer<I>
 where
     I: Producer,
 {
@@ -111,52 +93,25 @@ where
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
-            ComposedProducer {
-                base: left,
-                initial_size: self.initial_size,
-                work_count: self.work_count.clone(),
-            },
-            ComposedProducer {
-                base: right,
-                initial_size: self.initial_size,
-                work_count: self.work_count,
-            },
+            ComposedProducer { base: left },
+            ComposedProducer { base: right },
         )
     }
 
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
         (
-            ComposedProducer {
-                base: left,
-                initial_size: self.initial_size,
-                work_count: self.work_count.clone(),
-            },
-            ComposedProducer {
-                base: right,
-                initial_size: self.initial_size,
-                work_count: self.work_count,
-            },
+            ComposedProducer { base: left },
+            ComposedProducer { base: right },
         )
     }
 
     fn should_be_divided(&self) -> bool {
-        let my_size = self.size_hint().0;
-        let work_count = self.work_count.load(Ordering::Relaxed) as usize;
-        let total_work = self.initial_size;
-
-        let at_limit =
-            my_size + work_count == total_work && work_count != total_work && my_size > 1;
-
-        ALLOW_PARALLELISM.with(|b| {
-            let base = self.base.should_be_divided();
-            let allowed = b.load(Ordering::Relaxed);
-            allowed && (base || at_limit)
-        })
+        ALLOW_PARALLELISM.with(|b| b.load(Ordering::Relaxed) && self.base.should_be_divided())
     }
 }
 
-impl<'a, I> Producer for ComposedProducer<'a, I>
+impl<I> Producer for ComposedProducer<I>
 where
     I: Producer,
 {
