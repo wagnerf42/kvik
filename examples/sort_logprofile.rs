@@ -2,10 +2,16 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon_try_fold::slice_par_sort;
+use std::env;
 
-const PROBLEM_SIZE: u32 = 1_000_000;
-const NUM_THREADS: usize = 8;
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 3 {
+        panic!("please enter problem_size num_threads as the two command line args for this");
+    }
+    let PROBLEM_SIZE: u32 = args[1].parse().unwrap();
+    let NUM_THREADS: usize = args[2].parse().unwrap();
+
     #[cfg(feature = "logs")]
     {
         let thread_pool = rayon_logs::ThreadPoolBuilder::new()
@@ -26,7 +32,7 @@ fn main() {
                     v
                 },
             )
-            .generate_logs("sort_prof.html")
+            .generate_logs(format!("jcnocap_{}_{}.html", PROBLEM_SIZE, NUM_THREADS))
             .expect("No logs for you");
     }
     #[cfg(not(feature = "logs"))]
