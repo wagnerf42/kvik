@@ -29,14 +29,13 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
     }
 
     fn check_triviality(&self, limit: usize) -> bool {
-        self.a.len() > limit
-            && self.b.len() > limit
-            && !(self.a.len() - self.a_index < 2
-                || self.b.len() - self.b_index < 2
-                || self.a[self.a.len() - 1] <= self.b[self.b_index]
-                || self.a[self.a_index] >= self.b[self.b.len() - 1]
-                || self.a[self.a_index] == self.a[self.a.len() - 1]
-                || self.b[self.b_index] == self.b[self.b.len() - 1])
+        //False means don't divide
+        !(self.a.len() - self.a_index < limit
+            || self.b.len() - self.b_index < limit
+            || self.a[self.a.len() - 1] <= self.b[self.b_index]
+            || self.a[self.a_index] >= self.b[self.b.len() - 1]
+            || self.a[self.a_index] == self.a[self.a.len() - 1]
+            || self.b[self.b_index] == self.b[self.b.len() - 1])
     }
 
     fn manual_merge(&mut self, limit: usize) {
