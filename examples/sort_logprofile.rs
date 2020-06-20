@@ -32,7 +32,7 @@ fn main() {
                     v
                 },
             )
-            .generate_logs(format!("jcnocap_{}_{}.html", PROBLEM_SIZE, NUM_THREADS))
+            .generate_logs(format!("jccap_{}_{}.html", PROBLEM_SIZE, NUM_THREADS))
             .expect("No logs for you");
     }
     #[cfg(not(feature = "logs"))]
