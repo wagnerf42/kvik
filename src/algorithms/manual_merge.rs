@@ -28,13 +28,15 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
         self.b_index += amount;
     }
 
-    fn check_triviality(&self) -> bool {
-        !(self.a.len() - self.a_index < 2
-            || self.b.len() - self.b_index < 2
-            || self.a[self.a.len() - 1] <= self.b[self.b_index]
-            || self.a[self.a_index] >= self.b[self.b.len() - 1]
-            || self.a[self.a_index] == self.a[self.a.len() - 1]
-            || self.b[self.b_index] == self.b[self.b.len() - 1])
+    fn check_triviality(&self, limit: usize) -> bool {
+        self.a.len() > limit
+            && self.b.len() > limit
+            && !(self.a.len() - self.a_index < 2
+                || self.b.len() - self.b_index < 2
+                || self.a[self.a.len() - 1] <= self.b[self.b_index]
+                || self.a[self.a_index] >= self.b[self.b.len() - 1]
+                || self.a[self.a_index] == self.a[self.a.len() - 1]
+                || self.b[self.b_index] == self.b[self.b.len() - 1])
     }
 
     fn manual_merge(&mut self, limit: usize) {
@@ -250,6 +252,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
     left: &mut [T],
     right: &mut [T],
     output: &mut [T],
+    lower_bound: usize,
 ) {
     let merger = Merger {
         a: left,
@@ -264,6 +267,6 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
         |m| m.out_index == m.out.len(),
         |m| m.divide(),
         |m, s| m.manual_merge(s),
-        |m| m.check_triviality(),
+        |m| m.check_triviality(lower_bound),
     );
 }

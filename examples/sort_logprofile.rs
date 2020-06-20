@@ -11,6 +11,7 @@ fn main() {
     }
     let PROBLEM_SIZE: u32 = args[1].parse().unwrap();
     let NUM_THREADS: usize = args[2].parse().unwrap();
+    let fusion_bound: usize = PROBLEM_SIZE as usize / (NUM_THREADS * NUM_THREADS);
 
     #[cfg(feature = "logs")]
     {
@@ -32,7 +33,10 @@ fn main() {
                     v
                 },
             )
-            .generate_logs(format!("jcnocap_{}_{}.html", PROBLEM_SIZE, NUM_THREADS))
+            .generate_logs(format!(
+                "jcnocap_{}_{}.html",
+                PROBLEM_SIZE, NUM_THREADS, fusion_bound
+            ))
             .expect("No logs for you");
     }
     #[cfg(not(feature = "logs"))]
