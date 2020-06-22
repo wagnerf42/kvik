@@ -83,7 +83,8 @@ fn sort_benchmarks(c: &mut Criterion) {
                 },
                 |(tp, mut input)| {
                     tp.install(|| {
-                        slice_par_sort(&mut input);
+                        let cap = if *nt >= 60 { 1_000_000 } else { 2 };
+                        slice_par_sort(&mut input, cap);
                         input
                     });
                 },
