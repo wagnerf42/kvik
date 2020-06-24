@@ -1,3 +1,4 @@
+// use crate::adaptive::AdaptiveProducer;
 use crate::prelude::*;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
@@ -37,8 +38,9 @@ where
             {
                 self.limit.fetch_sub(1, Ordering::SeqCst);
                 let producer = CapProducer {
-                    base,
+                    base: Some(base),
                     limit: self.limit,
+                    real_drop: true,
                 };
                 self.callback.call(producer)
             }
@@ -47,8 +49,9 @@ where
 }
 
 struct CapProducer<'l, I> {
-    base: I,
+    base: Option<I>,
     limit: &'l AtomicIsize,
+    real_drop: bool, // if false we don't change counter when dropped
 }
 
 impl<'l, I> Iterator for CapProducer<'l, I>
@@ -57,20 +60,19 @@ where
 {
     type Item = I::Item;
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.base.size_hint()
+        self.base.as_ref().map(|b| b.size_hint()).unwrap()
     }
     fn next(&mut self) -> Option<Self::Item> {
-        self.base.next()
+        self.base.as_mut().and_then(|b| b.next())
     }
-    // TODO: we should also do try_fold
-    fn fold<B, F>(self, init: B, f: F) -> B
+    fn fold<B, F>(mut self, init: B, f: F) -> B
     where
         F: FnMut(B, Self::Item) -> B,
     {
-        let r = self.base.fold(init, f);
-        self.limit.fetch_add(1, Ordering::SeqCst);
-        r
+        self.base.take().unwrap().fold(init, f)
     }
+    //TODO: we should do try fold.
+    //switch to nightly ?
 }
 
 impl<'l, I> Divisible for CapProducer<'l, I>
@@ -82,42 +84,61 @@ where
     //it should be fine on the condition that
     //should_be_divided is not called twice for a division.
     //are we sure this is always true ?
+    //more serious: we say yes but we are not divided
     fn should_be_divided(&self) -> bool {
-        self.base.should_be_divided() && {
-            let l = self.limit.fetch_sub(1, Ordering::SeqCst);
-            if l >= 0 {
-                true
-            } else {
-                self.limit.fetch_add(1, Ordering::SeqCst);
-                false
+        self.base
+            .as_ref()
+            .map(|b| b.should_be_divided())
+            .unwrap_or(false)
+            && {
+                let l = self.limit.fetch_sub(1, Ordering::SeqCst);
+                if l >= 0 {
+                    true
+                } else {
+                    self.limit.fetch_add(1, Ordering::SeqCst);
+                    false
+                }
             }
+    }
+    fn divide(mut self) -> (Self, Self) {
+        let (left, right) = self.base.take().unwrap().divide();
+        self.real_drop = false;
+        (
+            CapProducer {
+                base: Some(left),
+                limit: self.limit,
+                real_drop: true,
+            },
+            CapProducer {
+                base: Some(right),
+                limit: self.limit,
+                real_drop: true,
+            },
+        )
+    }
+    fn divide_at(mut self, index: usize) -> (Self, Self) {
+        let (left, right) = self.base.take().unwrap().divide_at(index);
+        self.real_drop = false;
+        (
+            CapProducer {
+                base: Some(left),
+                limit: self.limit,
+                real_drop: true,
+            },
+            CapProducer {
+                base: Some(right),
+                limit: self.limit,
+                real_drop: true,
+            },
+        )
+    }
+}
+
+impl<'l, I> std::ops::Drop for CapProducer<'l, I> {
+    fn drop(&mut self) {
+        if self.real_drop {
+            self.limit.fetch_add(1, Ordering::SeqCst);
         }
-    }
-    fn divide(self) -> (Self, Self) {
-        let (left, right) = self.base.divide();
-        (
-            CapProducer {
-                base: left,
-                limit: self.limit,
-            },
-            CapProducer {
-                base: right,
-                limit: self.limit,
-            },
-        )
-    }
-    fn divide_at(self, index: usize) -> (Self, Self) {
-        let (left, right) = self.base.divide_at(index);
-        (
-            CapProducer {
-                base: left,
-                limit: self.limit,
-            },
-            CapProducer {
-                base: right,
-                limit: self.limit,
-            },
-        )
     }
 }
 
@@ -126,7 +147,7 @@ where
     I: Producer,
 {
     fn preview(&self, index: usize) -> Self::Item {
-        self.base.preview(index)
+        self.base.as_ref().map(|b| b.preview(index)).unwrap()
     }
 }
 
