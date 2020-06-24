@@ -400,6 +400,13 @@ pub trait ParallelIterator: Sized {
         Log { base: self, name }
     }
 
+    fn collect<T: FromParallelIterator<Self::Item>>(self) -> T
+    where
+        <Self as ParallelIterator>::Item: Sync,
+    {
+        T::from_par_iter(self)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>;
@@ -549,4 +556,37 @@ where
         }
     }
     Try::from_ok(accum)
+}
+
+pub trait FromParallelIterator<A: Sync + Send> {
+    fn from_par_iter<T: ParallelIterator<Item = A>>(iter: T) -> Self;
+}
+
+impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
+    fn from_par_iter<T: ParallelIterator<Item = A>>(iter: T) -> Self {
+        use std::collections::LinkedList;
+
+        let l = iter
+            .fold(Vec::new, |mut v, e| {
+                v.push(e);
+                v
+            })
+            .map(|v| std::iter::once(v).collect::<LinkedList<Vec<T::Item>>>())
+            .reduce(LinkedList::new, |mut l1, mut l2| {
+                l1.append(&mut l2);
+                l1
+            });
+
+        let mut iter_list = l.into_iter();
+        let first = iter_list.next();
+
+        if let Some(first) = first {
+            iter_list.fold(first, |mut v, mut v2| {
+                v.append(&mut v2);
+                v
+            })
+        } else {
+            Vec::new()
+        }
+    }
 }

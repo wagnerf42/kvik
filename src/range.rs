@@ -30,7 +30,11 @@ impl Divisible for std::ops::Range<u64> {
         (self.end - self.start) >= 2
     }
     fn divide(self) -> (Self, Self) {
-        let index = (self.end - self.start) / 2;
+        // We need to divide with the biggest half on the left, so instead of just doing
+        // (end - start) / 2, which in cases of an odd length will put the biggest
+        // half on the right, we need to make sure we take the ceiling of the value:
+        // this is done using (end - start) - ((end - start) / 2).
+        let index = (self.end - self.start) - ((self.end - self.start)/ 2);
         self.divide_at(index as usize)
     }
     fn divide_at(self, index: usize) -> (Self, Self) {

@@ -1,5 +1,6 @@
 pub use crate::traits::Divisible;
 pub use crate::traits::EnumerableParallelIterator;
+pub use crate::traits::FromParallelIterator;
 pub use crate::traits::IntoParallelIterator;
 pub use crate::traits::IntoParallelRefIterator;
 pub use crate::traits::IntoParallelRefMutIterator;
