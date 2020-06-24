@@ -1,4 +1,5 @@
 use crate::adaptive::Adaptive;
+use crate::cap::Cap;
 use crate::composed::Composed;
 use crate::composed_counter::ComposedCounter;
 use crate::even_levels::EvenLevels;
@@ -15,8 +16,8 @@ use crate::upper_bound::UpperBound;
 use crate::wrap::Wrap;
 use crate::zip::Zip;
 use crate::Try;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, AtomicIsize};
 
 #[cfg(feature = "logs")]
 use crate::log::Log;
@@ -246,6 +247,12 @@ pub trait ParallelIterator: Sized {
     //so is there a method which is implemented for everyone but
     //where implementations differ based on power ?
     type Enumerable;
+    /// Try to cap tasks to a given number.
+    /// We cannot ensure it because we cap the divisions
+    /// but the user might create tasks we have no control on.
+    fn cap(self, limit: &AtomicIsize) -> Cap<Self> {
+        Cap { base: self, limit }
+    }
     /// Use rayon's steals reducing scheduling policy.
     fn rayon(self, limit: usize) -> Rayon<Self> {
         Rayon {
