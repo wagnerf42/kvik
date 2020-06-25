@@ -2,6 +2,7 @@
 extern crate rayon_logs as rayon;
 
 mod blocked;
+mod size_limit;
 mod upper_bound;
 pub use blocked::Blocked;
 mod adaptive;

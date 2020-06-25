@@ -11,6 +11,7 @@ use crate::map::Map;
 use crate::merge::Merge;
 use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
+use crate::size_limit::SizeLimit;
 use crate::small_channel::small_channel;
 use crate::upper_bound::UpperBound;
 use crate::wrap::Wrap;
@@ -305,6 +306,11 @@ pub trait ParallelIterator: Sized {
     }
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }
+    }
+    /// Don't allow any task of size lower than given limit
+    /// to go parallel.
+    fn size_limit(self, limit: usize) -> SizeLimit<Self> {
+        SizeLimit { base: self, limit }
     }
     /// This policy controls the division of the producer inside it.
     /// It will veto the division of a producer iff:

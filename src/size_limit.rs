@@ -1,12 +1,11 @@
 use crate::prelude::*;
-//TODO: As of now this won't really work with the adaptive scheduler. Need to think what it even means in
-//that context?
-struct JoinPolicyProducer<I> {
+
+struct SizeLimitProducer<I> {
     base: I,
-    limit: u32,
+    limit: usize,
 }
 
-impl<I> Iterator for JoinPolicyProducer<I>
+impl<I> Iterator for SizeLimitProducer<I>
 where
     I: Iterator,
 {
@@ -19,7 +18,7 @@ where
     }
 }
 
-impl<I> Divisible for JoinPolicyProducer<I>
+impl<I> Divisible for SizeLimitProducer<I>
 where
     I: Producer,
 {
@@ -27,35 +26,35 @@ where
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
-            JoinPolicyProducer {
+            SizeLimitProducer {
                 base: left,
-                limit: self.limit.saturating_sub(1),
+                limit: self.limit,
             },
-            JoinPolicyProducer {
+            SizeLimitProducer {
                 base: right,
-                limit: self.limit.saturating_sub(1),
+                limit: self.limit,
             },
         )
     }
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
         (
-            JoinPolicyProducer {
+            SizeLimitProducer {
                 base: left,
-                limit: self.limit.saturating_sub(1),
+                limit: self.limit,
             },
-            JoinPolicyProducer {
+            SizeLimitProducer {
                 base: right,
-                limit: self.limit.saturating_sub(1),
+                limit: self.limit,
             },
         )
     }
     fn should_be_divided(&self) -> bool {
-        self.limit > 0 && self.base.should_be_divided()
+        self.size_hint().1.map(|s| s > self.limit).unwrap_or(true) && self.base.should_be_divided()
     }
 }
 
-impl<I> Producer for JoinPolicyProducer<I>
+impl<I> Producer for SizeLimitProducer<I>
 where
     I: Producer,
 {
@@ -64,12 +63,12 @@ where
     }
 }
 
-pub struct UpperBound<I> {
+pub struct SizeLimit<I> {
     pub base: I,
-    pub limit: u32,
+    pub limit: usize,
 }
 
-impl<I: ParallelIterator> ParallelIterator for UpperBound<I> {
+impl<I: ParallelIterator> ParallelIterator for SizeLimit<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
@@ -79,7 +78,7 @@ impl<I: ParallelIterator> ParallelIterator for UpperBound<I> {
     {
         struct Callback<CB> {
             callback: CB,
-            limit: u32,
+            limit: usize,
         }
         impl<CB, T> ProducerCallback<T> for Callback<CB>
         where
@@ -90,7 +89,7 @@ impl<I: ParallelIterator> ParallelIterator for UpperBound<I> {
             where
                 P: Producer<Item = T>,
             {
-                self.callback.call(JoinPolicyProducer {
+                self.callback.call(SizeLimitProducer {
                     base: producer,
                     limit: self.limit,
                 })
