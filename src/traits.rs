@@ -234,7 +234,34 @@ where
         P: Producer<Item = I>,
     {
         let stop = AtomicBool::new(false);
-        schedule_join_try_reduce(producer, &self, &stop)
+        let sizes = std::iter::successors(Some(rayon::current_num_threads()), |s| {
+            Some(s.saturating_mul(2))
+        });
+        // let's get a sequential iterator of producers of increasing sizes
+        let producers = sizes.scan(Some(producer), |p, s| {
+            let remaining_producer = p.take().unwrap();
+            let (_, upper_bound) = remaining_producer.size_hint();
+            let capped_size = if let Some(bound) = upper_bound {
+                if bound == 0 {
+                    return None;
+                } else {
+                    s.min(bound)
+                }
+            } else {
+                s
+            };
+            let (left, right) = remaining_producer.divide_at(capped_size);
+            *p = Some(right);
+            Some(left)
+        });
+        try_fold(
+            &mut producers.map(|p| schedule_join_try_reduce(p, &self, &stop)),
+            (self.identity)(),
+            |previous_ok, current_result| match current_result.into_result() {
+                Ok(r) => (self.op)(previous_ok, r),
+                Err(e) => Try::from_error(e),
+            },
+        )
     }
 }
 
