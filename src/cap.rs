@@ -71,8 +71,14 @@ where
     {
         self.base.take().unwrap().fold(init, f)
     }
-    //TODO: we should do try fold.
-    //switch to nightly ?
+    #[cfg(feature = "nightly")]
+    fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
+    where
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Ok = B>,
+    {
+        self.base.as_mut().unwrap().try_fold(init, f)
+    }
 }
 
 impl<'l, I> Divisible for CapProducer<'l, I>

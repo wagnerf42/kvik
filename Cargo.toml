@@ -7,6 +7,7 @@ edition = "2018"
 [features]
 # enable this to log using rayon_logs
 logs = ["rayon_logs"]
+nightly = []
 
 [dependencies]
 rayon="*"

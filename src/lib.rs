@@ -1,3 +1,4 @@
+#![cfg_attr(feature = "nightly", feature(try_trait, never_type))] // see https://users.rust-lang.org/t/add-unstable-feature-only-if-compiled-on-nightly/27886/2
 #[cfg(feature = "logs")]
 extern crate rayon_logs as rayon;
 

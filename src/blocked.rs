@@ -79,9 +79,21 @@ impl<I: Producer> AdaptiveProducer for Blocked<I> {
         F: Fn(B, I::Item) -> B,
     {
         self.limit = limit;
-        self.try_fold(init, |old: B, e: I::Item| -> Result<B, ()> {
-            Ok(fold_op(old, e))
-        })
-        .unwrap()
+        #[cfg(feature = "nightly")]
+        {
+            #[inline]
+            fn ok<B, T>(mut f: impl FnMut(B, T) -> B) -> impl FnMut(B, T) -> Result<B, !> {
+                move |acc, x| Ok(f(acc, x))
+            }
+            self.try_fold(init, ok(fold_op)).unwrap()
+        }
+        #[cfg(not(feature = "nightly"))]
+        {
+            #[inline]
+            fn ok<B, T>(mut f: impl FnMut(B, T) -> B) -> impl FnMut(B, T) -> Result<B, ()> {
+                move |acc, x| Ok(f(acc, x))
+            }
+            self.try_fold(init, ok(fold_op)).unwrap()
+        }
     }
 }
