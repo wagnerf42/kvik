@@ -1,8 +1,10 @@
 //! Adaptive reductions
 
+use crate::cap::CapProducer;
 use crate::prelude::*;
 use crate::small_channel::small_channel;
 use crate::Blocked;
+use std::sync::atomic::AtomicIsize;
 
 pub(crate) trait AdaptiveProducer: Producer {
     fn completed(&self) -> bool;
@@ -264,6 +266,40 @@ where
         divide: &divide,
         work: &work,
         should_divide: &should_be_divided,
+    };
+    let identity = || ();
+    let op = |_, _| ();
+    let reducer = ReduceCallback {
+        op: &op,
+        identity: &identity,
+    };
+    adaptive_scheduler(&reducer, worker, ());
+}
+
+pub fn work_with_cap<S, C, D, W, SD>(
+    init: S,
+    completed: C,
+    divide: D,
+    work: W,
+    should_be_divided: SD,
+    task_cap: isize,
+) where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
+{
+    let worker = CapProducer {
+        base: Some(Worker {
+            state: init,
+            completed: &completed,
+            divide: &divide,
+            work: &work,
+            should_divide: &should_be_divided,
+        }),
+        limit: &AtomicIsize::new(task_cap - 1),
+        real_drop: true,
     };
     let identity = || ();
     let op = |_, _| ();
