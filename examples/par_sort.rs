@@ -25,10 +25,10 @@ fn main() {
             .expect("Thread pool build failed");
         let log = tp
             .logging_install(|| {
-                iter_par_sort(&mut input);
+                slice_par_sort(&mut input, 4);
             })
             .1;
-        log.save_svg("iter_par_sort.svg")
+        log.save_svg("slice_par_sort_fusiontaskcap.svg")
             .expect("saving log failed");
     }
     assert_eq!(input, solution);
