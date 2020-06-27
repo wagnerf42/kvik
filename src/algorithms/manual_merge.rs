@@ -1,5 +1,5 @@
+use crate::adaptive::work_with_cap;
 use crate::utils::slice_utils::{subslice_without_first_value, subslice_without_last_value};
-use crate::work;
 
 struct Merger<'a, T> {
     a: &'a [T],
@@ -250,6 +250,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
     left: &mut [T],
     right: &mut [T],
     output: &mut [T],
+    task_cap: isize,
 ) {
     let merger = Merger {
         a: left,
@@ -259,11 +260,12 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
         out: output,
         out_index: 0,
     };
-    work(
+    work_with_cap(
         merger,
         |m| m.out_index == m.out.len(),
         |m| m.divide(),
         |m, s| m.manual_merge(s),
         |m| m.check_triviality(),
+        task_cap,
     );
 }

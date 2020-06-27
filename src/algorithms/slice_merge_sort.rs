@@ -11,7 +11,7 @@ fn fuse_slices<'a: 'c, 'b: 'c, 'c, T: 'a + 'b>(s1: &'a mut [T], s2: &'b mut [T])
 }
 
 /// This is a stable parallel merge sort for slices
-pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
+pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T], fusion_task_cap: isize) {
     let input_len = input.len();
     let mut buffer: Vec<T> = Vec::with_capacity(input_len);
     unsafe {
@@ -49,12 +49,12 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
             #[cfg(feature = "logs")]
             {
                 subgraph("parallel fusion", new_output.len(), || {
-                    adaptive_slice_merge(left_input, right_input, new_output);
+                    adaptive_slice_merge(left_input, right_input, new_output, fusion_task_cap);
                 });
             }
             #[cfg(not(feature = "logs"))]
             {
-                adaptive_slice_merge(left_input, right_input, new_output);
+                adaptive_slice_merge(left_input, right_input, new_output, fusion_task_cap);
             }
             (new_output, fuse_slices(left_input, right_input))
         });
