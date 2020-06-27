@@ -1,4 +1,4 @@
-// use crate::adaptive::AdaptiveProducer;
+use crate::adaptive::AdaptiveProducer;
 use crate::prelude::*;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
@@ -48,10 +48,29 @@ where
     }
 }
 
-struct CapProducer<'l, I> {
-    base: Option<I>,
-    limit: &'l AtomicIsize,
-    real_drop: bool, // if false we don't change counter when dropped
+impl<'l, I> AdaptiveProducer for CapProducer<'l, I>
+where
+    I: AdaptiveProducer,
+{
+    fn completed(&self) -> bool {
+        self.base.as_ref().map(|b| b.completed()).unwrap_or(false)
+    }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        self.base
+            .as_mut()
+            .map(|b| b.partial_fold(init, fold_op, limit))
+            .unwrap()
+    }
+}
+
+pub(crate) struct CapProducer<'l, I> {
+    pub base: Option<I>,
+    pub limit: &'l AtomicIsize,
+    pub real_drop: bool, // if false we don't change counter when dropped
 }
 
 impl<'l, I> Iterator for CapProducer<'l, I>
@@ -98,7 +117,7 @@ where
             .unwrap_or(false)
             && {
                 let l = self.limit.fetch_sub(1, Ordering::SeqCst);
-                if l >= 0 {
+                if l > 0 {
                     true
                 } else {
                     self.limit.fetch_add(1, Ordering::SeqCst);
