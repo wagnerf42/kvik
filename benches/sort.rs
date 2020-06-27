@@ -6,103 +6,43 @@ extern crate rayon;
 extern crate rayon_try_fold;
 
 use rand::prelude::*;
-use rayon::prelude::*;
-use rayon_try_fold::{iter_par_sort, slice_par_sort};
+use rayon_try_fold::slice_par_sort;
 use std::time::Duration;
 
 use criterion::{Criterion, ParameterizedBenchmark};
+use itertools::iproduct;
 
-const NUM_THREADS: usize = 16;
+const PROBLEM_SIZE: u32 = 100_000_000;
 
 fn sort_benchmarks(c: &mut Criterion) {
-    //let sizes: Vec<u32> = vec![100_000];
-    let sizes: Vec<u32> = vec![100_000, 1_000_000, 10_000_000, 100_000_000];
+    let threads: Vec<usize> = vec![10, 16, 30, 50, 54, 56, 60, 64];
+    let caps: Vec<isize> = vec![1, 2, 4, 8, 16, 32, 64];
     c.bench(
-        "random input",
+        "fusion task cap",
         ParameterizedBenchmark::new(
-            "sequential sort",
-            |b, input_size| {
+            "slice sort",
+            |b, (num_threads, num_tasks)| {
                 b.iter_with_setup(
                     || {
                         let tp = rayon::ThreadPoolBuilder::new()
-                            .num_threads(1)
+                            .num_threads(*num_threads)
                             .build()
                             .expect("Couldn't build thread pool");
-                        let mut input = (0..*input_size).collect::<Vec<_>>();
+                        let mut input = (0..PROBLEM_SIZE).collect::<Vec<_>>();
                         let mut rng = rand::thread_rng();
                         input.shuffle(&mut rng);
                         (tp, input)
                     },
                     |(tp, mut input)| {
                         tp.install(|| {
-                            input.sort();
+                            slice_par_sort(&mut input, *num_tasks);
                             input
                         });
                     },
                 )
             },
-            sizes.clone(),
-        )
-        .with_function("rayon sort", |b, input_size| {
-            b.iter_with_setup(
-                || {
-                    let tp = rayon::ThreadPoolBuilder::new()
-                        .num_threads(NUM_THREADS)
-                        .build()
-                        .expect("Couldn't build thread pool");
-                    let mut input = (0..*input_size).collect::<Vec<_>>();
-                    let mut rng = rand::thread_rng();
-                    input.shuffle(&mut rng);
-                    (tp, input)
-                },
-                |(tp, mut input)| {
-                    tp.install(|| {
-                        input.par_sort();
-                        input
-                    });
-                },
-            )
-        })
-        .with_function("slice par sort", |b, input_size| {
-            b.iter_with_setup(
-                || {
-                    let tp = rayon::ThreadPoolBuilder::new()
-                        .num_threads(NUM_THREADS)
-                        .build()
-                        .expect("Couldn't build thread pool");
-                    let mut input = (0..*input_size).collect::<Vec<_>>();
-                    let mut rng = rand::thread_rng();
-                    input.shuffle(&mut rng);
-                    (tp, input)
-                },
-                |(tp, mut input)| {
-                    tp.install(|| {
-                        slice_par_sort(&mut input);
-                        input
-                    });
-                },
-            )
-        })
-        .with_function("iter par sort", |b, input_size| {
-            b.iter_with_setup(
-                || {
-                    let tp = rayon::ThreadPoolBuilder::new()
-                        .num_threads(NUM_THREADS)
-                        .build()
-                        .expect("Couldn't build thread pool");
-                    let mut input = (0..*input_size).collect::<Vec<_>>();
-                    let mut rng = rand::thread_rng();
-                    input.shuffle(&mut rng);
-                    (tp, input)
-                },
-                |(tp, mut input)| {
-                    tp.install(|| {
-                        iter_par_sort(&mut input);
-                        input
-                    });
-                },
-            )
-        }),
+            iproduct!(threads.clone(), caps.clone()),
+        ),
     );
 }
 
