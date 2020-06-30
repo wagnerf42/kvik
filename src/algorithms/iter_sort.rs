@@ -53,7 +53,12 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                     left.into_par_iter()
                         .merge(right.into_par_iter())
                         .zip(&mut new_output[..])
-                        .adaptive()
+                        .join_context_policy(std::cmp::min(
+                            (2.0 * (rayon::current_num_threads() as f32).log2().ceil()
+                                - (rayon::current_num_threads() as f32).log2().floor())
+                                as u32,
+                            5u32,
+                        ))
                         .for_each(|(inp, out)| {
                             *out = *inp;
                         });
@@ -66,7 +71,12 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                 left.into_par_iter()
                     .merge(right.into_par_iter())
                     .zip(&mut new_output[..])
-                    .adaptive()
+                    .join_context_policy(std::cmp::min(
+                        (2.0 * (rayon::current_num_threads() as f32).log2().ceil()
+                            - (rayon::current_num_threads() as f32).log2().floor())
+                            as u32,
+                        5u32,
+                    ))
                     .for_each(|(inp, out)| {
                         *out = *inp;
                     });
