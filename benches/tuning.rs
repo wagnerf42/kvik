@@ -15,8 +15,8 @@ use criterion::{Criterion, ParameterizedBenchmark};
 const PROBLEM_SIZE: u32 = 100_000_000;
 
 fn sort_benchmarks(c: &mut Criterion) {
-    let num_threads: Vec<usize> = vec![4, 10, 16, 18, 33, 34, 40, 58];
-    let upper_bounds: Vec<u32> = vec![2, 4, 6, 8, 10, 12];
+    let num_threads: Vec<usize> = vec![54, 56, 58, 60, 64];
+    let upper_bounds: Vec<u32> = vec![4, 6, 8, 10, 12];
     c.bench(
         "tuning bounds",
         ParameterizedBenchmark::new(
