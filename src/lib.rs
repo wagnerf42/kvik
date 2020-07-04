@@ -10,7 +10,7 @@ mod adaptive;
 mod lower_bound;
 pub use adaptive::work;
 mod algorithms;
-pub use algorithms::iter_sort::iter_par_sort;
+pub use algorithms::iter_sort::{iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon};
 pub use algorithms::manual_merge::adaptive_slice_merge;
 pub use algorithms::slice_merge_sort::slice_par_sort;
 mod cap;

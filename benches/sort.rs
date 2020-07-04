@@ -6,98 +6,77 @@ extern crate rayon;
 extern crate rayon_try_fold;
 
 use rand::prelude::*;
-use rayon::prelude::*;
-use rayon_try_fold::{iter_par_sort, slice_par_sort};
+use rayon_try_fold::{iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon};
 use std::time::Duration;
 
 use criterion::{Criterion, ParameterizedBenchmark};
 
-const NUM_THREADS: usize = 16;
+const PROBLEM_SIZE: u32 = 100_000_000;
 
 fn sort_benchmarks(c: &mut Criterion) {
     //let sizes: Vec<u32> = vec![100_000];
-    let sizes: Vec<u32> = vec![100_000, 1_000_000, 10_000_000, 100_000_000];
+    let threads: Vec<usize> = vec![30, 40, 50, 60];
     c.bench(
         "random input",
         ParameterizedBenchmark::new(
-            "sequential sort",
-            |b, input_size| {
+            "iter sort JC JC",
+            |b, nt| {
                 b.iter_with_setup(
                     || {
                         let tp = rayon::ThreadPoolBuilder::new()
-                            .num_threads(1)
+                            .num_threads(*nt)
                             .build()
                             .expect("Couldn't build thread pool");
-                        let mut input = (0..*input_size).collect::<Vec<_>>();
+                        let mut input = (0..PROBLEM_SIZE).collect::<Vec<_>>();
                         let mut rng = rand::thread_rng();
                         input.shuffle(&mut rng);
                         (tp, input)
                     },
                     |(tp, mut input)| {
                         tp.install(|| {
-                            input.sort();
+                            iter_sort_jc_jc(&mut input);
                             input
                         });
                     },
                 )
             },
-            sizes.clone(),
+            threads.clone(),
         )
-        .with_function("rayon sort", |b, input_size| {
+        .with_function("iter sort JC rayon", |b, nt| {
             b.iter_with_setup(
                 || {
                     let tp = rayon::ThreadPoolBuilder::new()
-                        .num_threads(NUM_THREADS)
+                        .num_threads(*nt)
                         .build()
                         .expect("Couldn't build thread pool");
-                    let mut input = (0..*input_size).collect::<Vec<_>>();
+                    let mut input = (0..PROBLEM_SIZE).collect::<Vec<_>>();
                     let mut rng = rand::thread_rng();
                     input.shuffle(&mut rng);
                     (tp, input)
                 },
                 |(tp, mut input)| {
                     tp.install(|| {
-                        input.par_sort();
+                        iter_sort_jc_rayon(&mut input);
                         input
                     });
                 },
             )
         })
-        .with_function("slice par sort", |b, input_size| {
+        .with_function("iter sort JC adaptive", |b, nt| {
             b.iter_with_setup(
                 || {
                     let tp = rayon::ThreadPoolBuilder::new()
-                        .num_threads(NUM_THREADS)
+                        .num_threads(*nt)
                         .build()
                         .expect("Couldn't build thread pool");
-                    let mut input = (0..*input_size).collect::<Vec<_>>();
+                    let mut input = (0..PROBLEM_SIZE).collect::<Vec<_>>();
                     let mut rng = rand::thread_rng();
                     input.shuffle(&mut rng);
                     (tp, input)
                 },
                 |(tp, mut input)| {
                     tp.install(|| {
-                        slice_par_sort(&mut input);
-                        input
-                    });
-                },
-            )
-        })
-        .with_function("iter par sort", |b, input_size| {
-            b.iter_with_setup(
-                || {
-                    let tp = rayon::ThreadPoolBuilder::new()
-                        .num_threads(NUM_THREADS)
-                        .build()
-                        .expect("Couldn't build thread pool");
-                    let mut input = (0..*input_size).collect::<Vec<_>>();
-                    let mut rng = rand::thread_rng();
-                    input.shuffle(&mut rng);
-                    (tp, input)
-                },
-                |(tp, mut input)| {
-                    tp.install(|| {
-                        iter_par_sort(&mut input);
+                        iter_sort_jc_adaptive(&mut input);
                         input
                     });
                 },
