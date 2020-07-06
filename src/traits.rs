@@ -648,9 +648,6 @@ impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
 
 pub trait Consumer<Item>: Send + Sized {
     type Result: Send;
-    fn fold<I>(&self, iterator: I) -> Self::Result
-    where
-        I: Iterator<Item = Item>;
     fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result;
 
     fn consume_producer<P>(&self, producer: P) -> Self::Result
@@ -670,12 +667,6 @@ where
     ID: Fn() -> Item + Send + Sync,
 {
     type Result = Item;
-    fn fold<I>(&self, iterator: I) -> Self::Result
-    where
-        I: Iterator<Item = Item>,
-    {
-        iterator.fold((self.identity)(), |s, e| (self.op)(s, e))
-    }
     fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
         (self.op)(left, right)
     }
@@ -717,6 +708,6 @@ where
         );
         reducer.reduce(left_r, right_r)
     } else {
-        reducer.fold(producer)
+        producer.fold((reducer.identity)(), &reducer.op)
     }
 }

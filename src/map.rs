@@ -137,12 +137,6 @@ where
     C: Consumer<R>,
 {
     type Result = C::Result;
-    fn fold<I>(&self, iterator: I) -> Self::Result
-    where
-        I: Iterator<Item = Item>,
-    {
-        self.base.fold(iterator.map(&self.op))
-    }
     fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
         self.base.reduce(left, right)
     }

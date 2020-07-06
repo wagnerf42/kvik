@@ -17,6 +17,15 @@ impl<I: ParallelIterator> ParallelIterator for Rayon<I> {
     type Item = I::Item;
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let c = RayonConsumer {
+            base: consumer,
+            reset_counter: self.reset_counter,
+        };
+        self.base.drive(c)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -45,6 +54,7 @@ impl<I: ParallelIterator> ParallelIterator for Rayon<I> {
                     created_by: rayon::current_thread_index().unwrap(),
                 };
                 self.callback.call(producer)
+                //TODO: panic once the switch to consumers is done
             }
         }
     }
@@ -64,12 +74,13 @@ impl<I: Iterator> Iterator for RayonProducer<I> {
 impl<I: Divisible> Divisible for RayonProducer<I> {
     type Controlled = I::Controlled;
     fn should_be_divided(&self) -> bool {
-        (self.counter != 0 || self.created_by != rayon::current_thread_index().unwrap())
+        (self.counter != 0
+            || self.created_by != rayon::current_thread_index().unwrap_or(std::usize::MAX))
             && self.base.should_be_divided()
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
-        let current_thread = rayon::current_thread_index().unwrap();
+        let current_thread = rayon::current_thread_index().unwrap_or(std::usize::MAX);
         let new_counter = if current_thread == self.created_by {
             if self.counter == 0 {
                 0
@@ -96,7 +107,7 @@ impl<I: Divisible> Divisible for RayonProducer<I> {
     }
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
-        let current_thread = rayon::current_thread_index().unwrap();
+        let current_thread = rayon::current_thread_index().unwrap_or(std::usize::MAX);
         let new_counter = if current_thread == self.created_by {
             if self.counter == 0 {
                 0
@@ -126,5 +137,32 @@ impl<I: Divisible> Divisible for RayonProducer<I> {
 impl<I: Producer> Producer for RayonProducer<I> {
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
+    }
+}
+
+struct RayonConsumer<C> {
+    reset_counter: usize,
+    base: C,
+}
+
+impl<Item, C> Consumer<Item> for RayonConsumer<C>
+where
+    C: Consumer<Item>,
+{
+    type Result = C::Result;
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
+        self.base.reduce(left, right)
+    }
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let rayon_producer = RayonProducer {
+            base: producer,
+            created_by: rayon::current_num_threads(),
+            reset_counter: self.reset_counter,
+            counter: self.reset_counter,
+        };
+        self.base.consume_producer(rayon_producer)
     }
 }
