@@ -1,7 +1,7 @@
 use rand::random;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
-use rayon_try_fold::{iter_sort_jc_adaptive, iter_sort_jc_jc};
+use rayon_try_fold::slice_sort_jc_jc;
 
 #[derive(Copy, Clone, Debug)]
 struct OpaqueTuple {
@@ -28,7 +28,7 @@ impl Ord for OpaqueTuple {
 }
 
 #[test]
-fn test_iter_sort() {
+fn test_slice_sort() {
     let tp = rayon::ThreadPoolBuilder::new()
         .num_threads(4)
         .build()
@@ -42,12 +42,7 @@ fn test_iter_sort() {
         let mut input = (0..size).collect::<Vec<_>>();
         input.shuffle(&mut rng);
         tp.install(|| {
-            iter_sort_jc_adaptive(&mut input);
-        });
-        assert!(input.par_windows(2).all(|w| w[0] <= w[1]));
-        input.shuffle(&mut rng);
-        tp.install(|| {
-            iter_sort_jc_jc(&mut input);
+            slice_sort_jc_jc(&mut input);
         });
         assert!(input.par_windows(2).all(|w| w[0] <= w[1]));
     }
@@ -67,7 +62,7 @@ fn test_stability_all_equal() {
             })
             .collect();
         tp.install(|| {
-            iter_sort_jc_adaptive(&mut v);
+            slice_sort_jc_jc(&mut v);
         });
         &v.windows(2).for_each(|slice_of_opaque_tuples| {
             assert!(slice_of_opaque_tuples[0].second < slice_of_opaque_tuples[1].second);
@@ -88,7 +83,7 @@ fn test_stability_random_equal() {
             })
             .collect();
         tp.install(|| {
-            iter_sort_jc_adaptive(&mut v);
+            slice_sort_jc_jc(&mut v);
         });
         &v.windows(2).for_each(|slice_of_opaque_tuples| {
             assert!(

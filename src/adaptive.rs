@@ -171,7 +171,11 @@ where
 {
     type Item = ();
     fn next(&mut self) -> Option<Self::Item> {
-        None
+        if (self.completed)(&self.state) {
+            None
+        } else {
+            Some((self.work)(&mut self.state, 1))
+        }
     }
     fn fold<B, F>(mut self, init: B, _f: F) -> B
     where
