@@ -1,3 +1,4 @@
+pub use crate::traits::Consumer;
 pub use crate::traits::Divisible;
 pub use crate::traits::EnumerableParallelIterator;
 pub use crate::traits::FromParallelIterator;

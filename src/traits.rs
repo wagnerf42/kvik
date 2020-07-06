@@ -166,7 +166,7 @@ where
     }
 }
 
-fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<OP, ID>) -> T
+fn schedule_depjoin<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<OP, ID>) -> T
 where
     P: Producer<Item = T>,
     T: Send,
@@ -180,7 +180,7 @@ where
         let (left, right) = producer.divide();
         let (left_r, right_r) = rayon::join(
             || {
-                let my_result = schedule_join(left, reducer);
+                let my_result = schedule_depjoin(left, reducer);
                 let last = cleanup.swap(true, Ordering::SeqCst);
                 if last {
                     let his_result = receiver.recv().expect("receiving depjoin failed");
@@ -191,7 +191,7 @@ where
                 }
             },
             || {
-                let my_result = schedule_join(right, reducer);
+                let my_result = schedule_depjoin(right, reducer);
                 let last = cleanup.swap(true, Ordering::SeqCst);
                 if last {
                     let his_result = receiver1.recv().expect("receiving1 depjoin failed");
@@ -219,7 +219,7 @@ where
     where
         P: Producer<Item = T>,
     {
-        schedule_join(producer, &self)
+        schedule_depjoin(producer, &self)
     }
 }
 
@@ -275,6 +275,12 @@ pub trait ParallelIterator: Sized {
     //so is there a method which is implemented for everyone but
     //where implementations differ based on power ?
     type Enumerable;
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let c = ConsumerCallback(consumer);
+        self.with_producer(c)
+    }
+
     /// Try to cap tasks to a given number.
     /// We cannot ensure it because we cap the divisions
     /// but the user might create tasks we have no control on.
@@ -365,6 +371,15 @@ pub trait ParallelIterator: Sized {
     {
         let reduce_cb = ReduceCallback { op, identity };
         self.with_producer(reduce_cb)
+    }
+
+    fn test_reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
+    where
+        OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
+        ID: Fn() -> Self::Item + Send + Sync,
+    {
+        let consumer = ReduceConsumer { op, identity };
+        self.drive(consumer)
     }
 
     fn composed(self) -> Composed<Self> {
@@ -628,5 +643,80 @@ impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
         } else {
             Vec::new()
         }
+    }
+}
+
+pub trait Consumer<Item>: Send + Sized {
+    type Result: Send;
+    fn fold<I>(&self, iterator: I) -> Self::Result
+    where
+        I: Iterator<Item = Item>;
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result;
+
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>;
+}
+
+struct ReduceConsumer<OP, ID> {
+    op: OP,
+    identity: ID,
+}
+
+impl<Item, OP, ID> Consumer<Item> for ReduceConsumer<OP, ID>
+where
+    Item: Send,
+    OP: Fn(Item, Item) -> Item + Send + Sync,
+    ID: Fn() -> Item + Send + Sync,
+{
+    type Result = Item;
+    fn fold<I>(&self, iterator: I) -> Self::Result
+    where
+        I: Iterator<Item = Item>,
+    {
+        iterator.fold((self.identity)(), |s, e| (self.op)(s, e))
+    }
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
+        (self.op)(left, right)
+    }
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        schedule_join(producer, self)
+    }
+}
+
+struct ConsumerCallback<C>(C);
+
+impl<T, C> ProducerCallback<T> for ConsumerCallback<C>
+where
+    C: Consumer<T>,
+{
+    type Output = C::Result;
+    fn call<P>(self, producer: P) -> Self::Output
+    where
+        P: Producer<Item = T>,
+    {
+        self.0.consume_producer(producer)
+    }
+}
+
+fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceConsumer<OP, ID>) -> T
+where
+    P: Producer<Item = T>,
+    T: Send,
+    OP: Fn(T, T) -> T + Sync + Send,
+    ID: Fn() -> T + Send + Sync,
+{
+    if producer.should_be_divided() {
+        let (left, right) = producer.divide();
+        let (left_r, right_r) = rayon::join(
+            || schedule_join(left, reducer),
+            || schedule_join(right, reducer),
+        );
+        reducer.reduce(left_r, right_r)
+    } else {
+        reducer.fold(producer)
     }
 }

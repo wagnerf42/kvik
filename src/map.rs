@@ -9,11 +9,20 @@ impl<R, I, F> ParallelIterator for Map<I, F>
 where
     R: Send,
     I: ParallelIterator,
-    F: Fn(I::Item) -> R + Sync,
+    F: Fn(I::Item) -> R + Sync + Send,
 {
     type Item = R;
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let c = MapConsumer {
+            op: self.op,
+            base: consumer,
+        };
+        self.base.drive(c)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -113,6 +122,38 @@ impl<R, I, F> PreviewableParallelIterator for Map<I, F>
 where
     R: Send,
     I: PreviewableParallelIterator,
-    F: Fn(I::Item) -> R + Sync,
+    F: Fn(I::Item) -> R + Sync + Send,
 {
+}
+
+struct MapConsumer<C, F> {
+    op: F,
+    base: C,
+}
+
+impl<R, Item, F, C> Consumer<Item> for MapConsumer<C, F>
+where
+    F: Fn(Item) -> R + Send + Sync,
+    C: Consumer<R>,
+{
+    type Result = C::Result;
+    fn fold<I>(&self, iterator: I) -> Self::Result
+    where
+        I: Iterator<Item = Item>,
+    {
+        self.base.fold(iterator.map(&self.op))
+    }
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
+        self.base.reduce(left, right)
+    }
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let map_producer = MapProducer {
+            op: &self.op,
+            base: producer,
+        };
+        self.base.consume_producer(map_producer)
+    }
 }
