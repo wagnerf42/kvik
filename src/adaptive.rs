@@ -1,7 +1,9 @@
 //! Adaptive reductions
 
+use crate::join_context_policy::JoinContextPolicyProducer;
 use crate::prelude::*;
 use crate::small_channel::small_channel;
+use crate::traits::schedule_join;
 use crate::Blocked;
 
 pub(crate) trait AdaptiveProducer: Producer {
@@ -272,4 +274,40 @@ where
         identity: &identity,
     };
     adaptive_scheduler(&reducer, worker, ());
+}
+
+pub fn work_jc<S, C, D, W, SD>(
+    init: S,
+    completed: C,
+    divide: D,
+    work: W,
+    should_be_divided: SD,
+    limit: u32,
+) where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
+{
+    let worker = Worker {
+        state: init,
+        completed: &completed,
+        divide: &divide,
+        work: &work,
+        should_divide: &should_be_divided,
+    };
+    let worker = JoinContextPolicyProducer {
+        base: worker,
+        limit,
+        is_right: false,
+        my_creator: rayon::current_thread_index().unwrap(),
+    };
+    let identity = || ();
+    let op = |_, _| ();
+    let reducer = crate::traits::ReduceCallback {
+        op: &op,
+        identity: &identity,
+    };
+    schedule_join(worker, &reducer);
 }

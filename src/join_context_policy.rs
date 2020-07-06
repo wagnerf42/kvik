@@ -1,10 +1,10 @@
 use crate::prelude::*;
 
-struct JoinContextPolicyProducer<I> {
-    base: I,
-    limit: u32,
-    is_right: bool,
-    my_creator: usize,
+pub(crate) struct JoinContextPolicyProducer<I> {
+    pub(crate) base: I,
+    pub(crate) limit: u32,
+    pub(crate) is_right: bool,
+    pub(crate) my_creator: usize,
 }
 
 impl<I> Iterator for JoinContextPolicyProducer<I>

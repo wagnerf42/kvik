@@ -16,7 +16,11 @@ rayon_logs={optional=true, git="https://github.com/wagnerf42/rayon-logs"}
 rand="*"
 
 [[bench]]
-name="sort"
+name="slice_sort"
+harness=false
+
+[[bench]]
+name="iter_sort"
 harness=false
 
 [dev_dependencies]

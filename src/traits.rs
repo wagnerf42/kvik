@@ -100,9 +100,9 @@ pub trait Producer: Send + Iterator + Divisible {
     fn preview(&self, index: usize) -> Self::Item;
 }
 
-struct ReduceCallback<OP, ID> {
-    op: OP,
-    identity: ID,
+pub(crate) struct ReduceCallback<OP, ID> {
+    pub(crate) op: OP,
+    pub(crate) identity: ID,
 }
 
 struct TryReduceCallback<OP, ID> {
@@ -166,7 +166,7 @@ where
     }
 }
 
-fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<OP, ID>) -> T
+pub(crate) fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceCallback<OP, ID>) -> T
 where
     P: Producer<Item = T>,
     T: Send,
