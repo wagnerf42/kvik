@@ -72,6 +72,17 @@ impl<I: ParallelIterator> ParallelIterator for SizeLimit<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
+    fn drive<C>(self, consumer: C) -> C::Result
+    where
+        C: Consumer<Self::Item>,
+    {
+        let c = SizeLimit {
+            base: consumer,
+            limit: self.limit,
+        };
+        self.base.drive(c)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -99,5 +110,27 @@ impl<I: ParallelIterator> ParallelIterator for SizeLimit<I> {
             callback,
             limit: self.limit,
         })
+    }
+}
+
+impl<Item, C> Consumer<Item> for SizeLimit<C>
+where
+    C: Consumer<Item>,
+{
+    type Result = C::Result;
+
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
+        self.base.reduce(left, right)
+    }
+
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let limit_producer = SizeLimitProducer {
+            base: producer,
+            limit: self.limit,
+        };
+        self.base.consume_producer(limit_producer)
     }
 }

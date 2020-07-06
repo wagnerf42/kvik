@@ -8,11 +8,19 @@ pub struct Filter<I, F> {
 impl<I, F> ParallelIterator for Filter<I, F>
 where
     I: ParallelIterator,
-    F: Fn(&I::Item) -> bool + Sync,
+    F: Fn(&I::Item) -> bool + Send + Sync,
 {
     type Item = I::Item;
     type Controlled = I::Controlled;
     type Enumerable = False;
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let c = FilterConsumer {
+            filter: self.filter,
+            base: consumer,
+        };
+        self.base.drive(c)
+    }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
@@ -116,5 +124,31 @@ where
 {
     fn preview(&self, _: usize) -> Self::Item {
         panic!("FilterProducer is not previewable")
+    }
+}
+
+pub struct FilterConsumer<C, F> {
+    pub(crate) base: C,
+    pub(crate) filter: F,
+}
+
+impl<Item, F, C> Consumer<Item> for FilterConsumer<C, F>
+where
+    F: Fn(&Item) -> bool + Send + Sync,
+    C: Consumer<Item>,
+{
+    type Result = C::Result;
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
+        self.base.reduce(left, right)
+    }
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let filter_producer = FilterProducer {
+            filter: &self.filter,
+            base: producer,
+        };
+        self.base.consume_producer(filter_producer)
     }
 }

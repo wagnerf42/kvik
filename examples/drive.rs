@@ -13,9 +13,11 @@ fn main() {
             (0u64..10_000)
                 .into_par_iter()
                 .map(|x| x + 1)
+                .filter(|&x| x < 1_000)
                 .rayon(3)
+                .log("driving")
                 .test_reduce(|| 0, |a, b| a + b),
-            5_000 * 10_001
+            999 * 500
         )
     });
     log.save_svg("drive.svg").expect("failed saving svg");

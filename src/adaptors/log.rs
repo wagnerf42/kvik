@@ -14,6 +14,14 @@ impl<'a, I: ParallelIterator> ParallelIterator for Log<I> {
     type Enumerable = I::Enumerable;
     type Item = I::Item;
 
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let c = Log {
+            name: self.name,
+            base: consumer,
+        };
+        self.base.drive(c)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -124,5 +132,26 @@ where
 {
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
+    }
+}
+
+#[cfg(feature = "logs")]
+impl<Item, C> Consumer<Item> for Log<C>
+where
+    C: Consumer<Item>,
+{
+    type Result = C::Result;
+    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
+        self.base.reduce(left, right)
+    }
+    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let log_producer = LogProducer {
+            base: producer,
+            name: self.name,
+        };
+        self.base.consume_producer(log_producer)
     }
 }

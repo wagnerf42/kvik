@@ -1,17 +1,15 @@
 use crate::adaptive::Adaptive;
+use crate::adaptors::{
+    even_levels::EvenLevels, filter::Filter, map::Map, rayon_policy::Rayon, size_limit::SizeLimit,
+};
 use crate::cap::Cap;
 use crate::composed::Composed;
 use crate::composed_counter::ComposedCounter;
-use crate::even_levels::EvenLevels;
-use crate::filter::Filter;
 use crate::fold::Fold;
 use crate::join_context_policy::JoinContextPolicy;
 use crate::lower_bound::LowerBound;
-use crate::map::Map;
 use crate::merge::Merge;
-use crate::rayon_policy::Rayon;
 use crate::sequential::Sequential;
-use crate::size_limit::SizeLimit;
 use crate::small_channel::small_channel;
 use crate::upper_bound::UpperBound;
 use crate::wrap::Wrap;
@@ -21,7 +19,7 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicIsize};
 
 #[cfg(feature = "logs")]
-use crate::log::Log;
+use crate::adaptors::log::Log;
 // Iterators have different properties
 // which allow for specialisation of some algorithms.
 //

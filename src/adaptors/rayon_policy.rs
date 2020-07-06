@@ -19,7 +19,7 @@ impl<I: ParallelIterator> ParallelIterator for Rayon<I> {
     type Enumerable = I::Enumerable;
 
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        let c = RayonConsumer {
+        let c = Rayon {
             base: consumer,
             reset_counter: self.reset_counter,
         };
@@ -140,12 +140,7 @@ impl<I: Producer> Producer for RayonProducer<I> {
     }
 }
 
-struct RayonConsumer<C> {
-    reset_counter: usize,
-    base: C,
-}
-
-impl<Item, C> Consumer<Item> for RayonConsumer<C>
+impl<Item, C> Consumer<Item> for Rayon<C>
 where
     C: Consumer<Item>,
 {
