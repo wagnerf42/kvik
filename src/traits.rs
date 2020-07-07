@@ -1,6 +1,7 @@
 use crate::adaptive::Adaptive;
 use crate::adaptors::{
-    even_levels::EvenLevels, filter::Filter, map::Map, rayon_policy::Rayon, size_limit::SizeLimit,
+    even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, map::Map, rayon_policy::Rayon,
+    size_limit::SizeLimit,
 };
 use crate::cap::Cap;
 use crate::composed::Composed;
@@ -395,6 +396,14 @@ pub trait ParallelIterator: Sized {
         }
     }
 
+    fn flat_map<F, PI>(self, map_op: F) -> FlatMap<Self, F>
+    where
+        F: Fn(Self::Item) -> PI + Sync + Send,
+        PI: IntoParallelIterator,
+    {
+        FlatMap { base: self, map_op }
+    }
+
     fn filter<F>(self, filter: F) -> Filter<Self, F>
     where
         F: Fn(&Self::Item) -> bool,
@@ -647,11 +656,14 @@ impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
     }
 }
 
-pub trait Consumer<Item>: Send + Sized + Clone {
-    type Result: Send;
-    type Reducer: Consumer<Self::Result>;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result;
+pub trait Reducer<Result>: Sync {
+    fn identity(&self) -> Result;
+    fn reduce(&self, left: Result, right: Result) -> Result;
+}
 
+pub trait Consumer<Item>: Send + Sync + Sized + Clone {
+    type Result: Send;
+    type Reducer: Reducer<Self::Result>;
     fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>;
@@ -672,6 +684,19 @@ impl<'f, OP, ID> Clone for ReduceConsumer<'f, OP, ID> {
     }
 }
 
+impl<'f, Item, OP, ID> Reducer<Item> for ReduceConsumer<'f, OP, ID>
+where
+    OP: Fn(Item, Item) -> Item + Send + Sync,
+    ID: Fn() -> Item + Send + Sync,
+{
+    fn identity(&self) -> Item {
+        (self.identity)()
+    }
+    fn reduce(&self, left: Item, right: Item) -> Item {
+        (self.op)(left, right)
+    }
+}
+
 impl<'f, Item, OP, ID> Consumer<Item> for ReduceConsumer<'f, OP, ID>
 where
     Item: Send,
@@ -680,9 +705,6 @@ where
 {
     type Result = Item;
     type Reducer = Self;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        (self.op)(left, right)
-    }
     fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
@@ -709,12 +731,11 @@ where
     }
 }
 
-fn schedule_join<'f, P, T, OP, ID>(producer: P, reducer: &ReduceConsumer<OP, ID>) -> T
+pub(crate) fn schedule_join<P, T, R>(producer: P, reducer: &R) -> T
 where
     P: Producer<Item = T>,
     T: Send,
-    OP: Fn(T, T) -> T + Sync + Send,
-    ID: Fn() -> T + Send + Sync,
+    R: Reducer<T>,
 {
     if producer.should_be_divided() {
         let (left, right) = producer.divide();
@@ -724,6 +745,6 @@ where
         );
         reducer.reduce(left_r, right_r)
     } else {
-        producer.fold((reducer.identity)(), &reducer.op)
+        producer.fold(reducer.identity(), |a, b| reducer.reduce(a, b))
     }
 }

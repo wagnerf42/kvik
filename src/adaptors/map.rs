@@ -52,9 +52,9 @@ where
     }
 }
 
-struct MapProducer<'f, I, F> {
-    base: I,
-    op: &'f F,
+pub(crate) struct MapProducer<'f, I, F> {
+    pub(crate) base: I,
+    pub(crate) op: &'f F,
 }
 
 impl<'f, R, I, F> Iterator for MapProducer<'f, I, F>
@@ -147,9 +147,6 @@ where
 {
     type Result = C::Result;
     type Reducer = C::Reducer;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        self.base.reduce(left, right)
-    }
     fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
