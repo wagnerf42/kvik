@@ -28,7 +28,7 @@ fn main() {
                     input
                 },
                 |mut v| {
-                    slice_par_sort(&mut v);
+                    slice_sort_jc_jc(&mut v);
                     v
                 },
             )
