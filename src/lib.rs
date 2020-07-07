@@ -16,6 +16,8 @@ pub use algorithms::slice_merge_sort::slice_par_sort;
 mod cap;
 mod composed;
 mod composed_counter;
+mod composed_size;
+mod composed_task;
 mod fold;
 mod join_context_policy;
 mod macro_blocks;

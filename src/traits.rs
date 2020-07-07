@@ -5,6 +5,8 @@ use crate::adaptors::{
 use crate::cap::Cap;
 use crate::composed::Composed;
 use crate::composed_counter::ComposedCounter;
+use crate::composed_size::ComposedSize;
+use crate::composed_task::ComposedTask;
 use crate::fold::Fold;
 use crate::join_context_policy::JoinContextPolicy;
 use crate::lower_bound::LowerBound;
@@ -389,6 +391,20 @@ pub trait ParallelIterator: Sized {
             base: self,
             counter: std::sync::atomic::AtomicU64::new(0),
             threshold,
+        }
+    }
+
+    fn composed_task(self) -> ComposedTask<Self> {
+        ComposedTask {
+            base: self,
+            counter: std::sync::atomic::AtomicU64::new(1),
+        }
+    }
+
+    fn composed_size(self, reset_counter: usize) -> ComposedSize<Self> {
+        ComposedSize {
+            base: self,
+            reset_counter,
         }
     }
 
