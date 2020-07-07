@@ -100,15 +100,21 @@ impl<I: ParallelIterator> ParallelIterator for EvenLevels<I> {
     }
 }
 
+impl<C: Clone> Clone for EvenLevels<C> {
+    fn clone(&self) -> Self {
+        EvenLevels {
+            base: self.base.clone(),
+        }
+    }
+}
+
 impl<Item, C> Consumer<Item> for EvenLevels<C>
 where
     C: Consumer<Item>,
 {
     type Result = C::Result;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        self.base.reduce(left, right)
-    }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
@@ -117,5 +123,8 @@ where
             counter: true,
         };
         self.base.consume_producer(even_levels_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

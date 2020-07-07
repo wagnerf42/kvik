@@ -136,15 +136,23 @@ where
 }
 
 #[cfg(feature = "logs")]
+impl<C: Clone> Clone for Log<C> {
+    fn clone(&self) -> Self {
+        Log {
+            base: self.base.clone(),
+            name: self.name,
+        }
+    }
+}
+
+#[cfg(feature = "logs")]
 impl<Item, C> Consumer<Item> for Log<C>
 where
     C: Consumer<Item>,
 {
     type Result = C::Result;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        self.base.reduce(left, right)
-    }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
@@ -153,5 +161,8 @@ where
             name: self.name,
         };
         self.base.consume_producer(log_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

@@ -17,7 +17,7 @@ where
 
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         let c = MapConsumer {
-            op: self.op,
+            op: &self.op,
             base: consumer,
         };
         self.base.drive(c)
@@ -52,9 +52,9 @@ where
     }
 }
 
-struct MapProducer<'f, I, F> {
-    base: I,
-    op: &'f F,
+pub(crate) struct MapProducer<'f, I, F> {
+    pub(crate) base: I,
+    pub(crate) op: &'f F,
 }
 
 impl<'f, R, I, F> Iterator for MapProducer<'f, I, F>
@@ -126,28 +126,38 @@ where
 {
 }
 
-struct MapConsumer<C, F> {
-    op: F,
+struct MapConsumer<'f, C, F> {
+    op: &'f F,
     base: C,
 }
 
-impl<R, Item, F, C> Consumer<Item> for MapConsumer<C, F>
+impl<'f, C: Clone, F> Clone for MapConsumer<'f, C, F> {
+    fn clone(&self) -> Self {
+        MapConsumer {
+            op: self.op,
+            base: self.base.clone(),
+        }
+    }
+}
+
+impl<'f, R, Item, F, C> Consumer<Item> for MapConsumer<'f, C, F>
 where
     F: Fn(Item) -> R + Send + Sync,
     C: Consumer<R>,
 {
     type Result = C::Result;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        self.base.reduce(left, right)
-    }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
         let map_producer = MapProducer {
-            op: &self.op,
+            op: self.op,
             base: producer,
         };
         self.base.consume_producer(map_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

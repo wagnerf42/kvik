@@ -16,7 +16,7 @@ where
 
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         let c = FilterConsumer {
-            filter: self.filter,
+            filter: &self.filter,
             base: consumer,
         };
         self.base.drive(c)
@@ -127,28 +127,38 @@ where
     }
 }
 
-pub struct FilterConsumer<C, F> {
+pub struct FilterConsumer<'f, C, F> {
     pub(crate) base: C,
-    pub(crate) filter: F,
+    pub(crate) filter: &'f F,
 }
 
-impl<Item, F, C> Consumer<Item> for FilterConsumer<C, F>
+impl<'f, C: Clone, F> Clone for FilterConsumer<'f, C, F> {
+    fn clone(&self) -> Self {
+        FilterConsumer {
+            base: self.base.clone(),
+            filter: self.filter,
+        }
+    }
+}
+
+impl<'f, Item, F, C> Consumer<Item> for FilterConsumer<'f, C, F>
 where
     F: Fn(&Item) -> bool + Send + Sync,
     C: Consumer<Item>,
 {
     type Result = C::Result;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        self.base.reduce(left, right)
-    }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
         let filter_producer = FilterProducer {
-            filter: &self.filter,
+            filter: self.filter,
             base: producer,
         };
         self.base.consume_producer(filter_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

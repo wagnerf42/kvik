@@ -155,7 +155,7 @@ fn rayon_outer_sum(vec: &Vec<Vec<u64>>) -> usize {
         .log("outer")
         .reduce(|| 0, |a, b| a + b)
 }
-
+#[cfg(feature = "logs")]
 fn composed_size(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
