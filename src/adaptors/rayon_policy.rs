@@ -140,15 +140,25 @@ impl<I: Producer> Producer for RayonProducer<I> {
     }
 }
 
+impl<C: Clone> Clone for Rayon<C> {
+    fn clone(&self) -> Self {
+        Rayon {
+            base: self.base.clone(),
+            reset_counter: self.reset_counter,
+        }
+    }
+}
+
 impl<Item, C> Consumer<Item> for Rayon<C>
 where
     C: Consumer<Item>,
 {
     type Result = C::Result;
+    type Reducer = C::Reducer;
     fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
         self.base.reduce(left, right)
     }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
@@ -159,5 +169,8 @@ where
             counter: self.reset_counter,
         };
         self.base.consume_producer(rayon_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

@@ -376,7 +376,10 @@ pub trait ParallelIterator: Sized {
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
         ID: Fn() -> Self::Item + Send + Sync,
     {
-        let consumer = ReduceConsumer { op, identity };
+        let consumer = ReduceConsumer {
+            op: &op,
+            identity: &identity,
+        };
         self.drive(consumer)
     }
 
@@ -644,35 +647,50 @@ impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
     }
 }
 
-pub trait Consumer<Item>: Send + Sized {
+pub trait Consumer<Item>: Send + Sized + Clone {
     type Result: Send;
+    type Reducer: Consumer<Self::Result>;
     fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result;
 
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>;
+    fn to_reducer(self) -> Self::Reducer;
 }
 
-struct ReduceConsumer<OP, ID> {
-    op: OP,
-    identity: ID,
+struct ReduceConsumer<'f, OP, ID> {
+    op: &'f OP,
+    identity: &'f ID,
 }
 
-impl<Item, OP, ID> Consumer<Item> for ReduceConsumer<OP, ID>
+impl<'f, OP, ID> Clone for ReduceConsumer<'f, OP, ID> {
+    fn clone(&self) -> Self {
+        ReduceConsumer {
+            op: self.op,
+            identity: self.identity,
+        }
+    }
+}
+
+impl<'f, Item, OP, ID> Consumer<Item> for ReduceConsumer<'f, OP, ID>
 where
     Item: Send,
     OP: Fn(Item, Item) -> Item + Send + Sync,
     ID: Fn() -> Item + Send + Sync,
 {
     type Result = Item;
+    type Reducer = Self;
     fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
         (self.op)(left, right)
     }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
-        schedule_join(producer, self)
+        schedule_join(producer, &self)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self
     }
 }
 
