@@ -2,8 +2,8 @@
 #[cfg(feature = "logs")]
 extern crate rayon_logs as rayon;
 
+mod adaptors;
 mod blocked;
-mod size_limit;
 mod upper_bound;
 pub use blocked::Blocked;
 mod adaptive;
@@ -16,17 +16,14 @@ pub use algorithms::slice_merge_sort::slice_par_sort;
 mod cap;
 mod composed;
 mod composed_counter;
-mod even_levels;
-mod filter;
+mod composed_size;
+mod composed_task;
 mod fold;
 mod join_context_policy;
-mod log;
 mod macro_blocks;
-mod map;
 mod merge;
 pub mod prelude;
 mod range;
-mod rayon_policy;
 mod sequential;
 mod slice;
 pub(crate) mod small_channel;

@@ -19,7 +19,7 @@ impl<I: ParallelIterator> ParallelIterator for Rayon<I> {
     type Enumerable = I::Enumerable;
 
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        let c = RayonConsumer {
+        let c = Rayon {
             base: consumer,
             reset_counter: self.reset_counter,
         };
@@ -140,20 +140,22 @@ impl<I: Producer> Producer for RayonProducer<I> {
     }
 }
 
-struct RayonConsumer<C> {
-    reset_counter: usize,
-    base: C,
+impl<C: Clone> Clone for Rayon<C> {
+    fn clone(&self) -> Self {
+        Rayon {
+            base: self.base.clone(),
+            reset_counter: self.reset_counter,
+        }
+    }
 }
 
-impl<Item, C> Consumer<Item> for RayonConsumer<C>
+impl<Item, C> Consumer<Item> for Rayon<C>
 where
     C: Consumer<Item>,
 {
     type Result = C::Result;
-    fn reduce(&self, left: Self::Result, right: Self::Result) -> Self::Result {
-        self.base.reduce(left, right)
-    }
-    fn consume_producer<P>(&self, producer: P) -> Self::Result
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
     where
         P: Producer<Item = Item>,
     {
@@ -164,5 +166,8 @@ where
             counter: self.reset_counter,
         };
         self.base.consume_producer(rayon_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

@@ -68,6 +68,12 @@ impl<I: ParallelIterator> ParallelIterator for EvenLevels<I> {
     type Item = I::Item;
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
+
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let c = EvenLevels { base: consumer };
+        self.base.drive(c)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -91,5 +97,34 @@ impl<I: ParallelIterator> ParallelIterator for EvenLevels<I> {
             }
         }
         self.base.with_producer(Callback { callback })
+    }
+}
+
+impl<C: Clone> Clone for EvenLevels<C> {
+    fn clone(&self) -> Self {
+        EvenLevels {
+            base: self.base.clone(),
+        }
+    }
+}
+
+impl<Item, C> Consumer<Item> for EvenLevels<C>
+where
+    C: Consumer<Item>,
+{
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let even_levels_producer = EvenLevelsProducer {
+            base: producer,
+            counter: true,
+        };
+        self.base.consume_producer(even_levels_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

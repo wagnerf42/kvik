@@ -76,6 +76,30 @@ fn composed_counter(vec: &Vec<Vec<u64>>) -> usize {
 }
 
 #[cfg(feature = "logs")]
+fn composed_task(vec: &Vec<Vec<u64>>) -> usize {
+    use rayon_try_fold::prelude::*;
+
+    let threads = rayon::current_num_threads();
+    let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
+
+    vec.par_iter()
+        .map(|v: &Vec<u64>| {
+            let sum = v
+                .par_iter()
+                .fold(|| 0u64, |a, b| a + b)
+                .rayon(limit)
+                .composed()
+                .reduce(|| 0, |a, b| a + b);
+            ((sum + 1) % 2) as usize
+        })
+        .fold(|| 0, |a, b| a + b)
+        .rayon(limit)
+        .composed_task()
+        .log("outer")
+        .reduce(|| 0, |a, b| a + b)
+}
+
+#[cfg(feature = "logs")]
 fn rayon_both(vec: &Vec<Vec<u64>>) -> usize {
     use rayon_try_fold::prelude::*;
 
@@ -131,6 +155,28 @@ fn rayon_outer_sum(vec: &Vec<Vec<u64>>) -> usize {
         .log("outer")
         .reduce(|| 0, |a, b| a + b)
 }
+#[cfg(feature = "logs")]
+fn composed_size(vec: &Vec<Vec<u64>>) -> usize {
+    use rayon_try_fold::prelude::*;
+
+    let threads = rayon::current_num_threads();
+
+    let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
+
+    vec.par_iter()
+        .map(|v: &Vec<u64>| {
+            let sum = v
+                .par_iter()
+                .fold(|| 0u64, |a, b| a + b)
+                .composed_size(limit)
+                .reduce(|| 0, |a, b| a + b);
+            ((sum + 1) % 2) as usize
+        })
+        .fold(|| 0, |a, b| a + b)
+        .composed_size(limit)
+        .log("outer")
+        .reduce(|| 0, |a, b| a + b)
+}
 
 #[cfg(feature = "logs")]
 fn main() {
@@ -142,23 +188,23 @@ fn main() {
         .build()
         .expect("Failed to create thread pool");
 
-    let vec = random_vec(10000, 10000);
-    let expected = seq(&vec);
-
     /*
     let (_, log) = pool.logging_install(|| {
         let res = composed(&vec);
         assert_eq!(expected, res);
     });
     log.save_svg("even_sum.svg").expect("Failed to save svg");
-    */
+     */
+
+    let outer = 5;
+    let inner = 100_000;
 
     pool.compare()
-        .runs_number(25)
+        .runs_number(20)
         .attach_algorithm_with_setup(
             "rayon_outer",
             || {
-                let vec = random_vec(100_000, 1000);
+                let vec = random_vec(outer, inner);
                 vec
             },
             |v| {
@@ -167,13 +213,24 @@ fn main() {
             },
         )
         .attach_algorithm_with_setup(
-            "composed",
+            "composed_size",
             || {
-                let vec = random_vec(100_000, 1000);
+                let vec = random_vec(outer, inner);
                 vec
             },
             |v| {
-                composed(&v);
+                composed_size(&v);
+                v
+            },
+        )
+        .attach_algorithm_with_setup(
+            "composed_task",
+            || {
+                let vec = random_vec(outer, inner);
+                vec
+            },
+            |v| {
+                composed_task(&v);
                 v
             },
         )
