@@ -1,11 +1,10 @@
 use crate::adaptors::{
-    adaptive::Adaptive, bound_depth::BoundDepth, composition::Composed,
+    adaptive::Adaptive, bound_depth::BoundDepth, cap::Cap, composition::Composed,
     composition::ComposedCounter, composition::ComposedSize, composition::ComposedTask,
     even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, force_depth::ForceDepth,
     join_context_policy::JoinContextPolicy, map::Map, merge::Merge, rayon_policy::Rayon,
     size_limit::SizeLimit, zip::Zip,
 };
-use crate::cap::Cap;
 use crate::fold::Fold;
 use crate::sequential::Sequential;
 use crate::small_channel::small_channel;

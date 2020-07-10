@@ -1,5 +1,6 @@
 pub(crate) mod adaptive;
 pub(crate) mod bound_depth;
+pub(crate) mod cap;
 pub(crate) mod composition;
 pub(crate) mod even_levels;
 pub(crate) mod filter;

@@ -14,6 +14,14 @@ where
     type Item = I::Item;
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let cap_consumer = Cap {
+            base: consumer,
+            limit: self.limit,
+        };
+        self.base.drive(cap_consumer)
+    }
+
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -158,6 +166,44 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.as_ref().map(|b| b.preview(index)).unwrap()
     }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.as_ref().map(|b| b.scheduler()).unwrap()
+    }
 }
 
 impl<'l, I> PreviewableParallelIterator for Cap<'l, I> where I: PreviewableParallelIterator {}
+
+// consumer
+
+impl<'l, C: Clone> Clone for Cap<'l, C> {
+    fn clone(&self) -> Self {
+        Cap {
+            base: self.base.clone(),
+            limit: self.limit,
+        }
+    }
+}
+
+impl<'l, Item, C: Consumer<Item>> Consumer<Item> for Cap<'l, C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let cap_producer = CapProducer {
+            base: Some(producer),
+            limit: self.limit,
+            real_drop: true,
+        };
+        self.base.consume_producer(cap_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
