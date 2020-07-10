@@ -116,6 +116,15 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         (self.op)(self.base.preview(index))
     }
+
+    fn scheduler<'r, P, T, S>(&self) -> &'r dyn Fn(P, &'r S) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        S: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
 }
 
 impl<R, I, F> PreviewableParallelIterator for Map<I, F>

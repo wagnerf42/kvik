@@ -8,5 +8,6 @@ pub use crate::traits::IntoParallelRefMutIterator;
 pub use crate::traits::PreviewableParallelIterator;
 pub use crate::traits::Producer;
 pub use crate::traits::ProducerCallback;
+pub use crate::traits::Reducer;
 pub use crate::traits::{False, True};
 pub use crate::traits::{ParallelIterator, TryReducible};

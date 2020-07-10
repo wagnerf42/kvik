@@ -138,6 +138,15 @@ impl<I: Producer> Producer for RayonProducer<I> {
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
 }
 
 impl<C: Clone> Clone for Rayon<C> {

@@ -61,6 +61,15 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
 }
 
 pub struct SizeLimit<I> {
