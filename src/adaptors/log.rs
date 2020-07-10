@@ -1,3 +1,4 @@
+#[cfg(feature = "logs")]
 use crate::prelude::*;
 #[cfg(feature = "logs")]
 extern crate rayon_logs;

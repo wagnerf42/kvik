@@ -15,7 +15,6 @@ mod fold;
 mod macro_blocks;
 pub mod prelude;
 mod range;
-mod sequential;
 mod slice;
 pub(crate) mod small_channel;
 pub(crate) mod traits;

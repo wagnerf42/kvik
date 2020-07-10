@@ -11,5 +11,6 @@ pub(crate) mod log;
 pub(crate) mod map;
 pub(crate) mod merge;
 pub(crate) mod rayon_policy;
+pub(crate) mod sequential;
 pub(crate) mod size_limit;
 pub(crate) mod zip;

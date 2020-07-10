@@ -287,7 +287,7 @@ where
     fn sizes(&self) -> (usize, Option<usize>) {
         self.size_hint()
     }
-    fn preview(&self, index: usize) -> Self::Item {
+    fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a merge")
     }
     fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T

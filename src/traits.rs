@@ -3,10 +3,9 @@ use crate::adaptors::{
     composition::ComposedCounter, composition::ComposedSize, composition::ComposedTask,
     even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, force_depth::ForceDepth,
     join_context_policy::JoinContextPolicy, map::Map, merge::Merge, rayon_policy::Rayon,
-    size_limit::SizeLimit, zip::Zip,
+    sequential::Sequential, size_limit::SizeLimit, zip::Zip,
 };
 use crate::fold::Fold;
-use crate::sequential::Sequential;
 use crate::small_channel::small_channel;
 use crate::wrap::Wrap;
 use crate::Try;
