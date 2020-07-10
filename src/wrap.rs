@@ -95,6 +95,9 @@ impl<D> Producer for WrapProducer<D>
 where
     D: Divisible + Send,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        unimplemented!("I don't know")
+    }
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a WrapProducer")
     }

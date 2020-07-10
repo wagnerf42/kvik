@@ -66,7 +66,8 @@ where
 {
     type Item = I::Item;
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.base.size_hint()
+        let (min, max) = self.base.size_hint();
+        (0, max)
     }
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(elem) = self.base.next() {
@@ -122,6 +123,9 @@ where
     I: Producer,
     F: Fn(&I::Item) -> bool + Sync,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.base.sizes()
+    }
     fn preview(&self, _: usize) -> Self::Item {
         panic!("FilterProducer is not previewable")
     }

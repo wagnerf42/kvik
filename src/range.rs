@@ -46,6 +46,9 @@ macro_rules! implement_traits {
         }
 
         impl Producer for std::ops::Range<$x> {
+            fn sizes(&self) -> (usize, Option<usize>) {
+                self.size_hint()
+            }
             fn preview(&self, index: usize) -> Self::Item {
                 self.start + index as $x
             }

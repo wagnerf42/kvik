@@ -58,6 +58,9 @@ impl<I> Producer for SizeLimitProducer<I>
 where
     I: Producer,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.base.sizes()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }

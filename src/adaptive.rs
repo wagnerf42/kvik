@@ -19,44 +19,23 @@ pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
     })
 }
 
-pub struct Adaptive<I> {
-    pub(crate) base: I,
-}
-
-//TODO: is this always the same ?
-struct ReduceCallback<'f, OP, ID> {
-    op: &'f OP,
-    identity: &'f ID,
-}
-
-impl<'f, T, OP, ID> ProducerCallback<T> for ReduceCallback<'f, OP, ID>
+pub(crate) fn schedule_adapt<P, T, R>(producer: P, reducer: &R) -> T
 where
+    P: Producer<Item = T>,
     T: Send,
-    OP: Fn(T, T) -> T + Sync + Send,
-    ID: Fn() -> T + Send + Sync,
+    R: Reducer<T>,
 {
-    type Output = T;
-    fn call<P>(self, producer: P) -> Self::Output
-    where
-        P: Producer<Item = T>,
-    {
-        let blocked_producer = Blocked::new(producer);
-        let output = (self.identity)();
-        adaptive_scheduler(&self, blocked_producer, output)
-    }
+    let initial_output = reducer.identity();
+    let blocked_producer = Blocked::new(producer);
+    adaptive_scheduler(reducer, blocked_producer, initial_output)
 }
 
 //TODO: should we really pass the reduce refs by refs ?
-fn adaptive_scheduler<'f, T, OP, ID, P>(
-    reducer: &ReduceCallback<'f, OP, ID>,
-    producer: P,
-    output: T,
-) -> T
+fn adaptive_scheduler<'f, T, P, R>(reducer: &R, producer: P, output: T) -> T
 where
     T: Send,
-    OP: Fn(T, T) -> T + Sync + Send,
-    ID: Fn() -> T + Send + Sync,
     P: AdaptiveProducer<Item = T>,
+    R: Reducer<T>,
 {
     let (sender, receiver) = small_channel();
     let (left_result, maybe_right_result): (T, Option<T>) = rayon::join_context(
@@ -67,7 +46,8 @@ where
                 if producer.completed() {
                     Err(output)
                 } else {
-                    let new_output = producer.partial_fold(output, reducer.op, s);
+                    // TODO: remove closure ?
+                    let new_output = producer.partial_fold(output, |a, b| reducer.reduce(a, b), s);
                     Ok((producer, new_output))
                 }
             }) {
@@ -79,7 +59,8 @@ where
                     adaptive_scheduler(reducer, my_half, output)
                 } else {
                     sender.send(None);
-                    remaining_producer.fold(output, reducer.op)
+                    //TODO: remove closure ?
+                    remaining_producer.fold(output, |a, b| reducer.reduce(a, b))
                 }
             }
             Err(output) => {
@@ -104,7 +85,7 @@ where
                     }
                 };
                 stolen_task
-                    .map(|producer| adaptive_scheduler(reducer, producer, (reducer.identity)()))
+                    .map(|producer| adaptive_scheduler(reducer, producer, reducer.identity()))
             } else {
                 None
             }
@@ -112,45 +93,9 @@ where
     );
 
     if let Some(right_result) = maybe_right_result {
-        (reducer.op)(left_result, right_result)
+        reducer.reduce(left_result, right_result)
     } else {
         left_result
-    }
-}
-
-impl<I> ParallelIterator for Adaptive<I>
-where
-    I: ParallelIterator,
-{
-    type Controlled = I::Controlled;
-    type Enumerable = I::Enumerable;
-    type Item = I::Item;
-    //TODO: why isnt this the default function ?
-    //ANSWER: Maybe you could add an associated type ReduceCallback which has to implement
-    //ProducerCallback, and then use this type in the default implementation of the reduce?
-    //Oh, you can't because there is no default associated type
-    fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
-    where
-        OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
-        ID: Fn() -> Self::Item + Sync + Send,
-    {
-        let reduce_cb = ReduceCallback {
-            op: &op,
-            identity: &identity,
-        };
-        self.with_producer(reduce_cb)
-    }
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
-    where
-        CB: ProducerCallback<Self::Item>,
-    {
-        self.base.with_producer(callback)
-    }
-    fn for_each<OP>(self, op: OP)
-    where
-        OP: Fn(Self::Item) + Sync + Send,
-    {
-        self.map(op).adaptive().reduce(|| (), |_, _| ())
     }
 }
 
@@ -224,6 +169,9 @@ where
     W: Fn(&mut S, usize) + Sync,
     SD: Fn(&S) -> bool + Sync,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.size_hint()
+    }
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a Worker")
     }
@@ -267,7 +215,7 @@ where
     };
     let identity = || ();
     let op = |_, _| ();
-    let reducer = ReduceCallback {
+    let reducer = crate::traits::ReduceConsumer {
         op: &op,
         identity: &identity,
     };

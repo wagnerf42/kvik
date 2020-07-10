@@ -284,6 +284,9 @@ where
     A::Item: Ord,
     B: Producer<Item = A::Item>,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.size_hint()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         panic!("you cannot preview a merge")
     }

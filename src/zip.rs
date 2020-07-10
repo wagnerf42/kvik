@@ -150,6 +150,21 @@ where
     A: Producer,
     B: Producer,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        let (min_a, max_a) = self.a.sizes();
+        let (min_b, max_b) = self.b.sizes();
+        let min = min_a.max(min_b);
+        let max = if let Some(ma) = max_a {
+            if let Some(mb) = max_b {
+                Some(ma.min(mb))
+            } else {
+                Some(ma)
+            }
+        } else {
+            max_b
+        };
+        (min, max)
+    }
     fn preview(&self, index: usize) -> Self::Item {
         (self.a.preview(index), self.b.preview(index))
     }

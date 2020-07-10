@@ -113,6 +113,9 @@ where
     I: Producer,
     F: Fn(I::Item) -> R + Sync,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.base.sizes()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         (self.op)(self.base.preview(index))
     }

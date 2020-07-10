@@ -1,7 +1,6 @@
-use crate::adaptive::Adaptive;
 use crate::adaptors::{
-    even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, map::Map, rayon_policy::Rayon,
-    size_limit::SizeLimit,
+    adaptive::Adaptive, even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, map::Map,
+    rayon_policy::Rayon, size_limit::SizeLimit,
 };
 use crate::cap::Cap;
 use crate::composed::Composed;
@@ -85,9 +84,7 @@ pub trait ProducerCallback<T> {
 //but it require changing with_producer to propagate
 //type constraints. would it be a better option ?
 pub trait Producer: Send + Iterator + Divisible {
-    fn sizes(&self) -> (usize, Option<usize>) {
-        self.size_hint()
-    }
+    fn sizes(&self) -> (usize, Option<usize>);
     //TODO: this should only be called on left hand sides of infinite iterators
     fn length(&self) -> usize {
         let (min, max) = self.sizes();
@@ -109,7 +106,7 @@ pub trait Producer: Send + Iterator + Divisible {
     }
 }
 
-struct ReduceCallback<OP, ID> {
+pub(crate) struct ReduceCallback<OP, ID> {
     op: OP,
     identity: ID,
 }
@@ -693,9 +690,9 @@ pub trait Consumer<Item>: Send + Sync + Sized + Clone {
     fn to_reducer(self) -> Self::Reducer;
 }
 
-struct ReduceConsumer<'f, OP, ID> {
-    op: &'f OP,
-    identity: &'f ID,
+pub(crate) struct ReduceConsumer<'f, OP, ID> {
+    pub(crate) op: &'f OP,
+    pub(crate) identity: &'f ID,
 }
 
 impl<'f, OP, ID> Clone for ReduceConsumer<'f, OP, ID> {

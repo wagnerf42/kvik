@@ -152,6 +152,9 @@ impl<'l, I> Producer for CapProducer<'l, I>
 where
     I: Producer,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.base.as_ref().map(|b| b.sizes()).unwrap()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.as_ref().map(|b| b.preview(index)).unwrap()
     }

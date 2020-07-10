@@ -74,6 +74,9 @@ impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
 }
 
 impl<'a, T: 'a + Sync> Producer for IterProducer<'a, T> {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.size_hint()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         &self.slice[self.index + index]
     }
@@ -125,6 +128,9 @@ impl<'a, T: 'a + Sync> Divisible for std::slice::IterMut<'a, T> {
 }
 
 impl<'a, T: 'a + Send + Sync> Producer for std::slice::IterMut<'a, T> {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.size_hint()
+    }
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("mutable slices are not peekable");
     }

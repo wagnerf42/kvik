@@ -151,6 +151,9 @@ where
     F: Fn(T, I::Item) -> T + Sync,
     ID: Fn() -> T + Sync,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        unimplemented!("i need to check this file")
+    }
     fn preview(&self, _: usize) -> Self::Item {
         panic!("FoldProducer is not previewable")
     }

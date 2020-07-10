@@ -52,6 +52,9 @@ impl<I> Producer for Blocked<I>
 where
     I: Producer,
 {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        self.base.sizes()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
@@ -72,7 +75,7 @@ where
 
 impl<I: Producer> AdaptiveProducer for Blocked<I> {
     fn completed(&self) -> bool {
-        self.base.size_hint().1 == Some(0)
+        self.base.sizes().1 == Some(0)
     }
     fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
     where

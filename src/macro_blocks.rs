@@ -73,6 +73,9 @@ impl<P: Producer<Controlled = True>> Divisible for MacroBlockProducer<P> {
 }
 
 impl<P: Producer<Controlled = True>> Producer for MacroBlockProducer<P> {
+    fn sizes(&self) -> (usize, Option<usize>) {
+        unimplemented!()
+    }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
