@@ -307,12 +307,6 @@ pub trait ParallelIterator: Sized {
     {
         self.map(op).reduce(|| (), |_, _| ())
     }
-    fn test_for_each<OP>(self, op: OP)
-    where
-        OP: Fn(Self::Item) + Sync + Send,
-    {
-        self.map(op).test_reduce(|| (), |_, _| ())
-    }
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }
     }
@@ -368,15 +362,6 @@ pub trait ParallelIterator: Sized {
     }
 
     fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
-    where
-        OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
-        ID: Fn() -> Self::Item + Send + Sync,
-    {
-        let reduce_cb = ReduceCallback { op, identity };
-        self.with_producer(reduce_cb)
-    }
-
-    fn test_reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
         ID: Fn() -> Self::Item + Send + Sync,
