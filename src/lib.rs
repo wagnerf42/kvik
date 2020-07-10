@@ -12,7 +12,6 @@ pub use algorithms::iter_sort::iter_par_sort;
 pub use algorithms::manual_merge::adaptive_slice_merge;
 pub use algorithms::slice_merge_sort::slice_par_sort;
 mod cap;
-mod composed;
 mod composed_counter;
 mod composed_size;
 mod composed_task;
@@ -26,7 +25,6 @@ pub(crate) mod small_channel;
 pub(crate) mod traits;
 pub mod utils;
 mod wrap;
-mod zip;
 // TODO: change crate name
 #[macro_use]
 mod private;

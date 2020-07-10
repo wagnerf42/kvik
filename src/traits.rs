@@ -1,10 +1,10 @@
 use crate::adaptors::{
-    adaptive::Adaptive, bound_depth::BoundDepth, even_levels::EvenLevels, filter::Filter,
-    flat_map::FlatMap, force_depth::ForceDepth, join_context_policy::JoinContextPolicy, map::Map,
-    merge::Merge, rayon_policy::Rayon, size_limit::SizeLimit,
+    adaptive::Adaptive, bound_depth::BoundDepth, composed::Composed, even_levels::EvenLevels,
+    filter::Filter, flat_map::FlatMap, force_depth::ForceDepth,
+    join_context_policy::JoinContextPolicy, map::Map, merge::Merge, rayon_policy::Rayon,
+    size_limit::SizeLimit, zip::Zip,
 };
 use crate::cap::Cap;
-use crate::composed::Composed;
 use crate::composed_counter::ComposedCounter;
 use crate::composed_size::ComposedSize;
 use crate::composed_task::ComposedTask;
@@ -12,7 +12,6 @@ use crate::fold::Fold;
 use crate::sequential::Sequential;
 use crate::small_channel::small_channel;
 use crate::wrap::Wrap;
-use crate::zip::Zip;
 use crate::Try;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicIsize};

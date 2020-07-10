@@ -1,4 +1,4 @@
-use crate::composed::ALLOW_PARALLELISM;
+use crate::adaptors::composed::ALLOW_PARALLELISM;
 use crate::prelude::*;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
