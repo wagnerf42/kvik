@@ -18,5 +18,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
+    - name: Build with logs
+      run: cargo build --verbose --features logs
     - name: Run tests
       run: cargo test --verbose
+    - name: Run tests with logs
+      run: cargo test --verbose --features logs

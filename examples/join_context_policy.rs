@@ -13,9 +13,7 @@ fn main() {
             .expect("Thread pool builder failed");
         let (sum, log) = tp.logging_install(|| {
             inp.par_iter()
-                .join_context_policy()
-                .lower_bound(1)
-                .upper_bound(6)
+                .join_context_policy(5)
                 .map(|r| *r)
                 .reduce(|| 0, |left, right| left + right)
         });
