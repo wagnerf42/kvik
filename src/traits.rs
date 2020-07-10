@@ -1,6 +1,7 @@
 use crate::adaptors::{
-    adaptive::Adaptive, even_levels::EvenLevels, filter::Filter, flat_map::FlatMap,
-    join_context_policy::JoinContextPolicy, map::Map, rayon_policy::Rayon, size_limit::SizeLimit,
+    adaptive::Adaptive, bound_depth::BoundDepth, even_levels::EvenLevels, filter::Filter,
+    flat_map::FlatMap, join_context_policy::JoinContextPolicy, map::Map, rayon_policy::Rayon,
+    size_limit::SizeLimit,
 };
 use crate::cap::Cap;
 use crate::composed::Composed;
@@ -12,7 +13,6 @@ use crate::lower_bound::LowerBound;
 use crate::merge::Merge;
 use crate::sequential::Sequential;
 use crate::small_channel::small_channel;
-use crate::upper_bound::UpperBound;
 use crate::wrap::Wrap;
 use crate::zip::Zip;
 use crate::Try;
@@ -326,8 +326,8 @@ pub trait ParallelIterator: Sized {
     /// This policy controls the division of the producer inside it.
     /// It will veto the division of a producer iff:
     ///     The depth of that producer in the binary tree of tasks is equal to limit.
-    fn upper_bound(self, limit: u32) -> UpperBound<Self> {
-        UpperBound { base: self, limit }
+    fn bound_depth(self, limit: u32) -> BoundDepth<Self> {
+        BoundDepth { base: self, limit }
     }
     /// This policy controls the division of the producer inside it.
     /// It will *force* division of the producer iff:

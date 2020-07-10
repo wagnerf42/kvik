@@ -1,4 +1,5 @@
 pub(crate) mod adaptive;
+pub(crate) mod bound_depth;
 pub(crate) mod even_levels;
 pub(crate) mod filter;
 pub(crate) mod flat_map;

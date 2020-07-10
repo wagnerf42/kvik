@@ -1,12 +1,14 @@
 use crate::prelude::*;
 //TODO: As of now this won't really work with the adaptive scheduler. Need to think what it even means in
 //that context?
-struct JoinPolicyProducer<I> {
-    base: I,
-    limit: u32,
+
+pub struct BoundDepth<I> {
+    pub(crate) base: I,
+    pub(crate) limit: u32,
 }
 
-impl<I> Iterator for JoinPolicyProducer<I>
+// producer
+impl<I> Iterator for BoundDepth<I>
 where
     I: Iterator,
 {
@@ -19,19 +21,19 @@ where
     }
 }
 
-impl<I> Divisible for JoinPolicyProducer<I>
+impl<P> Divisible for BoundDepth<P>
 where
-    I: Producer,
+    P: Producer,
 {
-    type Controlled = <I as Divisible>::Controlled;
+    type Controlled = <P as Divisible>::Controlled;
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
-            JoinPolicyProducer {
+            BoundDepth {
                 base: left,
                 limit: self.limit.saturating_sub(1),
             },
-            JoinPolicyProducer {
+            BoundDepth {
                 base: right,
                 limit: self.limit.saturating_sub(1),
             },
@@ -40,11 +42,11 @@ where
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
         (
-            JoinPolicyProducer {
+            BoundDepth {
                 base: left,
                 limit: self.limit.saturating_sub(1),
             },
-            JoinPolicyProducer {
+            BoundDepth {
                 base: right,
                 limit: self.limit.saturating_sub(1),
             },
@@ -55,9 +57,9 @@ where
     }
 }
 
-impl<I> Producer for JoinPolicyProducer<I>
+impl<P> Producer for BoundDepth<P>
 where
-    I: Producer,
+    P: Producer,
 {
     fn sizes(&self) -> (usize, Option<usize>) {
         self.base.sizes()
@@ -65,17 +67,56 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+    fn scheduler<'r, Q, T, R>(&self) -> &'r dyn Fn(Q, &'r R) -> T
+    where
+        Q: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
 }
 
-pub struct UpperBound<I> {
-    pub base: I,
-    pub limit: u32,
+// consumer
+impl<C: Clone> Clone for BoundDepth<C> {
+    fn clone(&self) -> Self {
+        BoundDepth {
+            limit: self.limit,
+            base: self.base.clone(),
+        }
+    }
 }
 
-impl<I: ParallelIterator> ParallelIterator for UpperBound<I> {
+impl<Item, C: Consumer<Item>> Consumer<Item> for BoundDepth<C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let bound_depth_producer = BoundDepth {
+            limit: self.limit,
+            base: producer,
+        };
+        self.base.consume_producer(bound_depth_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+// iterator
+impl<I: ParallelIterator> ParallelIterator for BoundDepth<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let bound_depth_consumer = BoundDepth {
+            limit: self.limit,
+            base: consumer,
+        };
+        self.base.drive(bound_depth_consumer)
+    }
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -93,7 +134,7 @@ impl<I: ParallelIterator> ParallelIterator for UpperBound<I> {
             where
                 P: Producer<Item = T>,
             {
-                self.callback.call(JoinPolicyProducer {
+                self.callback.call(BoundDepth {
                     base: producer,
                     limit: self.limit,
                 })

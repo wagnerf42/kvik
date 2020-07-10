@@ -4,7 +4,6 @@ extern crate rayon_logs as rayon;
 
 mod adaptors;
 mod blocked;
-mod upper_bound;
 pub use blocked::Blocked;
 mod adaptive;
 mod lower_bound;
@@ -125,7 +124,7 @@ mod tests {
             ));
     }
     #[test]
-    fn upper_bound_test() {
+    fn bound_depth_test() {
         const JP_SIZE: u32 = 3;
         const PROBLEM_SIZE: u64 = 1000;
         (0u64..PROBLEM_SIZE)
@@ -137,7 +136,7 @@ mod tests {
                 );
                 chunk
             })
-            .upper_bound(JP_SIZE)
+            .bound_depth(JP_SIZE)
             .reduce(|| (0..1), |left, _| left);
     }
     #[test]
@@ -154,7 +153,7 @@ mod tests {
                 );
                 chunk
             })
-            .upper_bound(0)
+            .bound_depth(0)
             .lower_bound(JP_SIZE)
             .reduce(|| (0..1), |left, _| left);
     }
