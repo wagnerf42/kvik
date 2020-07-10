@@ -55,11 +55,11 @@ impl<I: ParallelIterator> ParallelIterator for Adaptive<I> {
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         self.base.drive(Adaptive { base: consumer })
     }
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, _callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
     {
-        panic!("scheduling policies cannot be called here")
+        panic!("scheduling policies must be called as a consumer")
     }
 }
 

@@ -1,11 +1,5 @@
 use crate::prelude::*;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
-
-thread_local! {
-    pub static ALLOW_PARALLELISM: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
-}
 
 /// Tries to limit parallel composition by switching off the ability to
 /// divide in parallel after a certain level of composition and upper task
@@ -71,7 +65,7 @@ where
     {
         let next_work_size = self.base.size_hint().0;
 
-        ALLOW_PARALLELISM.with(|b| {
+        super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
             if allowed {
                 if next_work_size > 1 {
@@ -111,7 +105,8 @@ where
     }
 
     fn should_be_divided(&self) -> bool {
-        ALLOW_PARALLELISM.with(|b| b.load(Ordering::Relaxed) && self.base.should_be_divided())
+        super::ALLOW_PARALLELISM
+            .with(|b| b.load(Ordering::Relaxed) && self.base.should_be_divided())
     }
 }
 

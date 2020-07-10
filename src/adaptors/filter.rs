@@ -66,7 +66,7 @@ where
 {
     type Item = I::Item;
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let (min, max) = self.base.size_hint();
+        let (_, max) = self.base.size_hint();
         (0, max)
     }
     fn next(&mut self) -> Option<Self::Item> {

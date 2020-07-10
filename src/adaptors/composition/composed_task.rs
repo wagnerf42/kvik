@@ -1,4 +1,3 @@
-use crate::adaptors::composed::ALLOW_PARALLELISM;
 use crate::prelude::*;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -77,7 +76,7 @@ where
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        ALLOW_PARALLELISM.with(|b| {
+        super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
             if allowed {
                 if self.size_hint().0 != 1 {
@@ -135,7 +134,7 @@ where
     }
 
     fn should_be_divided(&self) -> bool {
-        ALLOW_PARALLELISM.with(|b| {
+        super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
             let last_task = self.counter.load(Ordering::Relaxed) == 1 && self.size_hint().0 > 1;
 
