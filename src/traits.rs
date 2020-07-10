@@ -1,11 +1,10 @@
 use crate::adaptors::{
     adaptive::Adaptive, bound_depth::BoundDepth, cap::Cap, composition::Composed,
     composition::ComposedCounter, composition::ComposedSize, composition::ComposedTask,
-    even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, force_depth::ForceDepth,
-    join_context_policy::JoinContextPolicy, map::Map, merge::Merge, rayon_policy::Rayon,
-    sequential::Sequential, size_limit::SizeLimit, zip::Zip,
+    even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, fold::Fold,
+    force_depth::ForceDepth, join_context_policy::JoinContextPolicy, map::Map, merge::Merge,
+    rayon_policy::Rayon, sequential::Sequential, size_limit::SizeLimit, zip::Zip,
 };
-use crate::fold::Fold;
 use crate::small_channel::small_channel;
 use crate::wrap::Wrap;
 use crate::Try;
@@ -308,12 +307,6 @@ pub trait ParallelIterator: Sized {
     {
         self.map(op).reduce(|| (), |_, _| ())
     }
-    fn test_for_each<OP>(self, op: OP)
-    where
-        OP: Fn(Self::Item) + Sync + Send,
-    {
-        self.map(op).test_reduce(|| (), |_, _| ())
-    }
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }
     }
@@ -369,15 +362,6 @@ pub trait ParallelIterator: Sized {
     }
 
     fn reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
-    where
-        OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
-        ID: Fn() -> Self::Item + Send + Sync,
-    {
-        let reduce_cb = ReduceCallback { op, identity };
-        self.with_producer(reduce_cb)
-    }
-
-    fn test_reduce<OP, ID>(self, identity: ID, op: OP) -> Self::Item
     where
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
         ID: Fn() -> Self::Item + Send + Sync,

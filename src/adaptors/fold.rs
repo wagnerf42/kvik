@@ -17,6 +17,14 @@ where
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
 
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let fold_consumer = FoldConsumer {
+            base: consumer,
+            id: &self.id,
+            fold: &self.fold,
+        };
+        self.base.drive(fold_consumer)
+    }
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -72,10 +80,11 @@ where
     type Item = T;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        self.base
-            .as_ref()
-            .map(|b| b.size_hint())
-            .unwrap_or((0, Some(0)))
+        if self.base.is_some() {
+            (1, Some(1))
+        } else {
+            (0, Some(0))
+        }
     }
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -152,9 +161,62 @@ where
     ID: Fn() -> T + Sync,
 {
     fn sizes(&self) -> (usize, Option<usize>) {
-        unimplemented!("i need to check this file")
+        self.base
+            .as_ref()
+            .map(|b| b.sizes())
+            .unwrap_or((0, Some(0)))
     }
     fn preview(&self, _: usize) -> Self::Item {
         panic!("FoldProducer is not previewable")
+    }
+    fn scheduler<'r, P, T2, R>(&self) -> &'r dyn Fn(P, &'r R) -> T2
+    where
+        P: Producer<Item = T2>,
+        T2: Send,
+        R: Reducer<T2>,
+    {
+        self.base.as_ref().map(|b| b.scheduler()).unwrap()
+    }
+}
+
+// consumer
+
+struct FoldConsumer<'f, C, ID, F> {
+    base: C,
+    id: &'f ID,
+    fold: &'f F,
+}
+
+impl<'f, C: Clone, ID, F> Clone for FoldConsumer<'f, C, ID, F> {
+    fn clone(&self) -> Self {
+        FoldConsumer {
+            base: self.base.clone(),
+            id: self.id,
+            fold: self.fold,
+        }
+    }
+}
+
+impl<'f, T, Item, C, ID, F> Consumer<Item> for FoldConsumer<'f, C, ID, F>
+where
+    C: Consumer<T>,
+    F: Fn(T, Item) -> T + Sync,
+    ID: Fn() -> T + Sync,
+{
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let fold_producer = FoldProducer {
+            base: Some(producer),
+            id: self.id,
+            fold: self.fold,
+        };
+        self.base.consume_producer(fold_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

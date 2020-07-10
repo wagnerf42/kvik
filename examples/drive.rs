@@ -17,7 +17,7 @@ fn main() {
                 .filter(|&x| x < 1_000)
                 .rayon(3)
                 .log("driving")
-                .test_reduce(|| 0, |a, b| a + b),
+                .reduce(|| 0, |a, b| a + b),
             999 * 500
         )
     });
@@ -30,7 +30,7 @@ fn main() {
                 .flat_map(|e| 0..e)
                 .adaptive()
                 .filter(|&x| x % 2 == 1)
-                .test_reduce(|| 0, |a, b| a + b),
+                .reduce(|| 0, |a, b| a + b),
             80850
         )
     });
