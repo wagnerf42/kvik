@@ -1,6 +1,6 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rayon_try_fold::{iter_par_sort, slice_par_sort};
+use rayon_try_fold::{iter_sort_jc_jc, slice_par_sort};
 
 const PROBLEM_SIZE: u32 = 1_000_000;
 fn main() {
@@ -14,7 +14,7 @@ fn main() {
     #[cfg(not(feature = "logs"))]
     {
         tp.install(|| {
-            iter_par_sort(&mut input);
+            iter_sort_jc_jc(&mut input);
         });
     }
     #[cfg(feature = "logs")]
@@ -25,7 +25,7 @@ fn main() {
             .expect("Thread pool build failed");
         let log = tp
             .logging_install(|| {
-                iter_par_sort(&mut input);
+                iter_sort_jc_jc(&mut input);
             })
             .1;
         log.save_svg("iter_par_sort.svg")

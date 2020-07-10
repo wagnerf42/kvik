@@ -174,7 +174,7 @@ where
         if (self.completed)(&self.state) {
             None
         } else {
-            Some((self.work)(&mut self.state, 1))
+            Some((self.work)(&mut self.state, std::usize::MAX))
         }
     }
     fn fold<B, F>(mut self, init: B, _f: F) -> B
