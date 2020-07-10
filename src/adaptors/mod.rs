@@ -3,6 +3,7 @@ pub(crate) mod bound_depth;
 pub(crate) mod even_levels;
 pub(crate) mod filter;
 pub(crate) mod flat_map;
+pub(crate) mod force_depth;
 pub(crate) mod join_context_policy;
 pub(crate) mod log;
 pub(crate) mod map;

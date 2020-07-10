@@ -1,12 +1,14 @@
 use crate::prelude::*;
 //As of now this won't really work with the adaptive scheduler. Need to think what it even means in
 //that context?
-struct LowerBoundProducer<I> {
-    base: I,
-    limit: u32,
+
+pub struct ForceDepth<I> {
+    pub base: I,
+    pub limit: u32,
 }
 
-impl<I> Iterator for LowerBoundProducer<I>
+// producer
+impl<I> Iterator for ForceDepth<I>
 where
     I: Iterator,
 {
@@ -19,19 +21,19 @@ where
     }
 }
 
-impl<I> Divisible for LowerBoundProducer<I>
+impl<P> Divisible for ForceDepth<P>
 where
-    I: Producer,
+    P: Producer,
 {
-    type Controlled = <I as Divisible>::Controlled;
+    type Controlled = <P as Divisible>::Controlled;
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
         (
-            LowerBoundProducer {
+            ForceDepth {
                 base: left,
                 limit: self.limit.saturating_sub(1),
             },
-            LowerBoundProducer {
+            ForceDepth {
                 base: right,
                 limit: self.limit.saturating_sub(1),
             },
@@ -40,11 +42,11 @@ where
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
         (
-            LowerBoundProducer {
+            ForceDepth {
                 base: left,
                 limit: self.limit.saturating_sub(1),
             },
-            LowerBoundProducer {
+            ForceDepth {
                 base: right,
                 limit: self.limit.saturating_sub(1),
             },
@@ -55,9 +57,9 @@ where
     }
 }
 
-impl<I> Producer for LowerBoundProducer<I>
+impl<Q> Producer for ForceDepth<Q>
 where
-    I: Producer,
+    Q: Producer,
 {
     fn sizes(&self) -> (usize, Option<usize>) {
         self.base.sizes()
@@ -65,14 +67,46 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
 }
 
-pub struct LowerBound<I> {
-    pub base: I,
-    pub limit: u32,
+// consumer
+impl<C: Clone> Clone for ForceDepth<C> {
+    fn clone(&self) -> Self {
+        ForceDepth {
+            base: self.base.clone(),
+            limit: self.limit,
+        }
+    }
 }
 
-impl<I: ParallelIterator> ParallelIterator for LowerBound<I> {
+impl<Item, C: Consumer<Item>> Consumer<Item> for ForceDepth<C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let force_depth_producer = ForceDepth {
+            base: producer,
+            limit: self.limit,
+        };
+        self.base.consume_producer(force_depth_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+// iterator
+impl<I: ParallelIterator> ParallelIterator for ForceDepth<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
@@ -93,7 +127,7 @@ impl<I: ParallelIterator> ParallelIterator for LowerBound<I> {
             where
                 P: Producer<Item = T>,
             {
-                self.callback.call(LowerBoundProducer {
+                self.callback.call(ForceDepth {
                     base: producer,
                     limit: self.limit,
                 })

@@ -6,7 +6,6 @@ mod adaptors;
 mod blocked;
 pub use blocked::Blocked;
 mod adaptive;
-mod lower_bound;
 pub use adaptive::work;
 mod algorithms;
 pub use algorithms::iter_sort::iter_par_sort;
@@ -139,7 +138,7 @@ mod tests {
             .reduce(|| (0..1), |left, _| left);
     }
     #[test]
-    fn lower_bound_test() {
+    fn force_depth_test() {
         //This is not too good, it relies on upper bound as well
         const JP_SIZE: u32 = 3;
         const PROBLEM_SIZE: u64 = 1000;
@@ -153,7 +152,7 @@ mod tests {
                 chunk
             })
             .bound_depth(0)
-            .lower_bound(JP_SIZE)
+            .force_depth(JP_SIZE)
             .reduce(|| (0..1), |left, _| left);
     }
     #[test]
