@@ -1,7 +1,7 @@
 use crate::adaptors::{
     adaptive::Adaptive, bound_depth::BoundDepth, even_levels::EvenLevels, filter::Filter,
-    flat_map::FlatMap, join_context_policy::JoinContextPolicy, map::Map, rayon_policy::Rayon,
-    size_limit::SizeLimit,
+    flat_map::FlatMap, join_context_policy::JoinContextPolicy, map::Map, merge::Merge,
+    rayon_policy::Rayon, size_limit::SizeLimit,
 };
 use crate::cap::Cap;
 use crate::composed::Composed;
@@ -10,7 +10,6 @@ use crate::composed_size::ComposedSize;
 use crate::composed_task::ComposedTask;
 use crate::fold::Fold;
 use crate::lower_bound::LowerBound;
-use crate::merge::Merge;
 use crate::sequential::Sequential;
 use crate::small_channel::small_channel;
 use crate::wrap::Wrap;
@@ -314,6 +313,12 @@ pub trait ParallelIterator: Sized {
         OP: Fn(Self::Item) + Sync + Send,
     {
         self.map(op).reduce(|| (), |_, _| ())
+    }
+    fn test_for_each<OP>(self, op: OP)
+    where
+        OP: Fn(Self::Item) + Sync + Send,
+    {
+        self.map(op).test_reduce(|| (), |_, _| ())
     }
     fn even_levels(self) -> EvenLevels<Self> {
         EvenLevels { base: self }

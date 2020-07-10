@@ -19,7 +19,6 @@ mod composed_size;
 mod composed_task;
 mod fold;
 mod macro_blocks;
-mod merge;
 pub mod prelude;
 mod range;
 mod sequential;

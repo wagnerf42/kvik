@@ -53,8 +53,8 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                     left.into_par_iter()
                         .merge(right.into_par_iter())
                         .zip(&mut new_output[..])
-                        .adaptive()
-                        .for_each(|(inp, out)| {
+                        .adaptive() // we still need it because zip cannot relay info
+                        .test_for_each(|(inp, out)| {
                             *out = *inp;
                         });
                 });
@@ -67,7 +67,7 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                     .merge(right.into_par_iter())
                     .zip(&mut new_output[..])
                     .adaptive()
-                    .for_each(|(inp, out)| {
+                    .test_for_each(|(inp, out)| {
                         *out = *inp;
                     });
             }

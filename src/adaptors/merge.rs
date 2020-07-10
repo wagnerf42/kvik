@@ -290,9 +290,12 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         panic!("you cannot preview a merge")
     }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        &crate::adaptive::schedule_adapt
+    }
 }
-
-//TODO: I want the reduction to be adaptive here.
-//However if someone calls map after the merge
-//there is currently no way to forward this information
-//to the reduce op
