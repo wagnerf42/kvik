@@ -1,6 +1,6 @@
 use crate::adaptors::{
-    adaptive::Adaptive, even_levels::EvenLevels, filter::Filter, flat_map::FlatMap, map::Map,
-    rayon_policy::Rayon, size_limit::SizeLimit,
+    adaptive::Adaptive, even_levels::EvenLevels, filter::Filter, flat_map::FlatMap,
+    join_context_policy::JoinContextPolicy, map::Map, rayon_policy::Rayon, size_limit::SizeLimit,
 };
 use crate::cap::Cap;
 use crate::composed::Composed;
@@ -8,7 +8,6 @@ use crate::composed_counter::ComposedCounter;
 use crate::composed_size::ComposedSize;
 use crate::composed_task::ComposedTask;
 use crate::fold::Fold;
-use crate::join_context_policy::JoinContextPolicy;
 use crate::lower_bound::LowerBound;
 use crate::merge::Merge;
 use crate::sequential::Sequential;

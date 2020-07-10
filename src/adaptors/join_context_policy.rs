@@ -82,6 +82,14 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
 }
 
 pub struct JoinContextPolicy<I> {
@@ -93,6 +101,13 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let join_context_consumer = JoinContextPolicy {
+            base: consumer,
+            limit: self.limit,
+        };
+        self.base.drive(join_context_consumer)
+    }
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -122,5 +137,34 @@ impl<I: ParallelIterator> ParallelIterator for JoinContextPolicy<I> {
             callback,
             limit: self.limit,
         })
+    }
+}
+
+impl<C: Clone> Clone for JoinContextPolicy<C> {
+    fn clone(&self) -> Self {
+        JoinContextPolicy {
+            limit: self.limit,
+            base: self.base.clone(),
+        }
+    }
+}
+
+impl<Item, C: Consumer<Item>> Consumer<Item> for JoinContextPolicy<C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let join_context_producer = JoinContextPolicyProducer {
+            limit: self.limit,
+            base: producer,
+            is_right: false,
+            my_creator: rayon::current_thread_index().unwrap_or(0),
+        };
+        self.base.consume_producer(join_context_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

@@ -19,7 +19,6 @@ mod composed_counter;
 mod composed_size;
 mod composed_task;
 mod fold;
-mod join_context_policy;
 mod macro_blocks;
 mod merge;
 pub mod prelude;
