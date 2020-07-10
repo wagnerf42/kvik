@@ -11,7 +11,6 @@ mod algorithms;
 pub use algorithms::iter_sort::iter_par_sort;
 pub use algorithms::manual_merge::adaptive_slice_merge;
 pub use algorithms::slice_merge_sort::slice_par_sort;
-mod fold;
 mod macro_blocks;
 pub mod prelude;
 mod range;
