@@ -16,6 +16,13 @@ impl<I: ParallelIterator> ParallelIterator for ComposedSize<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let composed_size_consumer = ComposedSize {
+            base: consumer,
+            reset_counter: self.reset_counter,
+        };
+        self.base.drive(composed_size_consumer)
+    }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
@@ -159,5 +166,46 @@ where
     }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
+    }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
+}
+
+// consumer
+
+impl<C: Clone> Clone for ComposedSize<C> {
+    fn clone(&self) -> Self {
+        ComposedSize {
+            base: self.base.clone(),
+            reset_counter: self.reset_counter,
+        }
+    }
+}
+
+impl<Item, C: Consumer<Item>> Consumer<Item> for ComposedSize<C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let counter =
+            RAYON_COUNTER.with(|c| std::cmp::min(self.reset_counter, c.load(Ordering::Relaxed)));
+        let composed_sized_producer = ComposedSizeProducer {
+            base: producer,
+            reset_counter: self.reset_counter,
+            created_by: rayon::current_thread_index().unwrap_or(std::usize::MAX),
+            counter,
+        };
+        self.base.consume_producer(composed_sized_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

@@ -1,6 +1,9 @@
 pub(crate) mod adaptive;
 pub(crate) mod bound_depth;
 pub(crate) mod composed;
+pub(crate) mod composed_counter;
+pub(crate) mod composed_size;
+pub(crate) mod composed_task;
 pub(crate) mod even_levels;
 pub(crate) mod filter;
 pub(crate) mod flat_map;

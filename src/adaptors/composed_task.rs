@@ -12,6 +12,13 @@ impl<I: ParallelIterator> ParallelIterator for ComposedTask<I> {
     type Controlled = I::Controlled;
     type Enumerable = I::Enumerable;
     type Item = I::Item;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let composed_task_consumer = ComposedTask {
+            base: consumer,
+            counter: self.counter,
+        };
+        self.base.drive(composed_task_consumer)
+    }
 
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
@@ -146,5 +153,41 @@ where
     }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
+    }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
+}
+
+// consumer
+impl<C: Clone> Clone for ComposedTask<C> {
+    fn clone(&self) -> Self {
+        ComposedTask {
+            base: self.base.clone(),
+            counter: AtomicU64::new(self.counter.load(Ordering::SeqCst)),
+        }
+    }
+}
+
+impl<Item, C: Consumer<Item>> Consumer<Item> for ComposedTask<C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let composed_task_producer = ComposedTaskProducer {
+            base: producer,
+            counter: &self.counter,
+        };
+        self.base.consume_producer(composed_task_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }

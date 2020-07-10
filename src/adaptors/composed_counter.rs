@@ -17,6 +17,14 @@ impl<I: ParallelIterator> ParallelIterator for ComposedCounter<I> {
     type Enumerable = I::Enumerable;
     type Item = I::Item;
 
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let composed_counter_consumer = ComposedCounter {
+            base: consumer,
+            counter: self.counter,
+            threshold: self.threshold,
+        };
+        self.base.drive(composed_counter_consumer)
+    }
     fn with_producer<CB>(self, callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
@@ -175,5 +183,45 @@ where
     }
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
+    }
+    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    where
+        P: Producer<Item = T>,
+        T: Send,
+        R: Reducer<T>,
+    {
+        self.base.scheduler()
+    }
+}
+
+// consumer
+impl<C: Clone> Clone for ComposedCounter<C> {
+    fn clone(&self) -> Self {
+        ComposedCounter {
+            base: self.base.clone(),
+            counter: AtomicU64::new(self.counter.load(Ordering::SeqCst)),
+            threshold: self.threshold,
+        }
+    }
+}
+
+impl<Item, C: Consumer<Item>> Consumer<Item> for ComposedCounter<C> {
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let initial_size = producer.length();
+        let composed_counter_producer = ComposedCounterProducer {
+            base: producer,
+            initial_size,
+            work_count: &self.counter,
+            threshold: self.threshold,
+        };
+        self.base.consume_producer(composed_counter_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
     }
 }
