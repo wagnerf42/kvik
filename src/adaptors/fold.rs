@@ -169,11 +169,11 @@ where
     fn preview(&self, _: usize) -> Self::Item {
         panic!("FoldProducer is not previewable")
     }
-    fn scheduler<'r, P, T2, R>(&self) -> &'r dyn Fn(P, &'r R) -> T2
+    fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
     where
-        P: Producer<Item = T2>,
-        T2: Send,
-        R: Reducer<T2>,
+        P: Producer,
+        P::Item: Send,
+        R: Reducer<P::Item>,
     {
         self.base.as_ref().map(|b| b.scheduler()).unwrap()
     }

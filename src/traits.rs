@@ -21,7 +21,6 @@ use crate::adaptors::{
 use crate::schedulers::schedule_join;
 use crate::wrap::Wrap;
 use crate::Try;
-use std::sync::atomic::Ordering;
 use std::sync::atomic::{AtomicBool, AtomicIsize};
 
 #[cfg(feature = "logs")]
@@ -100,11 +99,11 @@ pub trait Producer: Send + Iterator + Divisible {
         }
     }
     fn preview(&self, index: usize) -> Self::Item;
-    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
     where
-        P: Producer<Item = T>,
-        T: Send,
-        R: Reducer<T>,
+        P: Producer,
+        P::Item: Send,
+        R: Reducer<P::Item>,
     {
         &schedule_join
     }
@@ -118,62 +117,6 @@ pub(crate) struct ReduceCallback<OP, ID> {
 struct TryReduceCallback<OP, ID> {
     op: OP,
     identity: ID,
-}
-
-fn schedule_join_try_reduce<P, T, OP, ID>(
-    mut producer: P,
-    reducer: &TryReduceCallback<OP, ID>,
-    stop: &AtomicBool,
-) -> P::Item
-where
-    P: Producer,
-    OP: Fn(T, T) -> P::Item + Sync + Send,
-    ID: Fn() -> T + Sync + Send,
-    P::Item: Try<Ok = T> + Send,
-{
-    if stop.load(Ordering::Relaxed) {
-        P::Item::from_ok((reducer.identity)())
-    } else {
-        if producer.should_be_divided() {
-            let (left, right) = producer.divide();
-            let (left_result, right_result) = rayon::join(
-                || schedule_join_try_reduce(left, reducer, stop),
-                || schedule_join_try_reduce(right, reducer, stop),
-            );
-            match left_result.into_result() {
-                Ok(left_ok) => match right_result.into_result() {
-                    Ok(right_ok) => {
-                        // TODO: should we also check the boolean here ?
-                        let final_result = (reducer.op)(left_ok, right_ok);
-                        match final_result.into_result() {
-                            Ok(f) => P::Item::from_ok(f),
-                            Err(e) => {
-                                stop.store(true, Ordering::Relaxed);
-                                P::Item::from_error(e)
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        stop.store(true, Ordering::Relaxed);
-                        P::Item::from_error(e)
-                    }
-                },
-                Err(e) => {
-                    stop.store(true, Ordering::Relaxed);
-                    P::Item::from_error(e)
-                }
-            }
-        } else {
-            let new_id = (reducer.identity)();
-            try_fold(&mut producer, new_id, |t, i| match i.into_result() {
-                Ok(t2) => (reducer.op)(t, t2),
-                Err(e) => {
-                    stop.store(true, Ordering::Relaxed);
-                    P::Item::from_error(e)
-                }
-            })
-        }
-    }
 }
 
 impl<I, T, OP, ID> ProducerCallback<I> for TryReduceCallback<OP, ID>
@@ -208,14 +151,15 @@ where
             *p = Some(right);
             Some(left)
         });
-        try_fold(
-            &mut producers.map(|p| schedule_join_try_reduce(p, &self, &stop)),
-            (self.identity)(),
-            |previous_ok, current_result| match current_result.into_result() {
-                Ok(r) => (self.op)(previous_ok, r),
-                Err(e) => Try::from_error(e),
-            },
-        )
+        unimplemented!()
+        //        try_fold(
+        //            &mut producers.map(|p| schedule_join_try_reduce(p, &self, &stop)),
+        //            (self.identity)(),
+        //            |previous_ok, current_result| match current_result.into_result() {
+        //                Ok(r) => (self.op)(previous_ok, r),
+        //                Err(e) => Try::from_error(e),
+        //            },
+        //        )
     }
 }
 
@@ -563,26 +507,6 @@ where
     fn par_iter_mut(&'data mut self) -> Self::Iter {
         self.into_par_iter()
     }
-}
-
-/// we need to re-implement it because it's not the real trait
-pub(crate) fn try_fold<I, B, F, R>(iterator: &mut I, init: B, mut f: F) -> R
-where
-    F: FnMut(B, I::Item) -> R,
-    R: Try<Ok = B>,
-    I: Iterator,
-{
-    let mut accum = init;
-    while let Some(x) = iterator.next() {
-        let accum_value = f(accum, x);
-        match accum_value.into_result() {
-            Ok(e) => {
-                accum = e;
-            }
-            Err(e) => return Try::from_error(e),
-        }
-    }
-    Try::from_ok(accum)
 }
 
 pub trait FromParallelIterator<A: Sync + Send> {

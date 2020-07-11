@@ -10,11 +10,11 @@ pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
     })
 }
 
-pub(crate) fn schedule_adaptive<P, T, R>(producer: P, reducer: &R) -> T
+pub(crate) fn schedule_adaptive<P, R>(producer: P, reducer: &R) -> P::Item
 where
-    P: Producer<Item = T>,
-    T: Send,
-    R: Reducer<T>,
+    P: Producer,
+    P::Item: Send,
+    R: Reducer<P::Item>,
 {
     let initial_output = reducer.identity();
     let blocked_producer = Blocked::new(producer);

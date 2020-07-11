@@ -167,11 +167,11 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
-    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
     where
-        P: Producer<Item = T>,
-        T: Send,
-        R: Reducer<T>,
+        P: Producer,
+        P::Item: Send,
+        R: Reducer<P::Item>,
     {
         self.base.scheduler()
     }

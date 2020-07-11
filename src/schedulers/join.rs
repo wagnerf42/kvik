@@ -1,11 +1,11 @@
 //! Easiest parallel scheduler.
 use crate::prelude::*;
 
-pub(crate) fn schedule_join<P, T, R>(producer: P, reducer: &R) -> T
+pub(crate) fn schedule_join<P, R>(producer: P, reducer: &R) -> P::Item
 where
-    P: Producer<Item = T>,
-    T: Send,
-    R: Reducer<T>,
+    P: Producer,
+    P::Item: Send,
+    R: Reducer<P::Item>,
 {
     if producer.should_be_divided() {
         let (left, right) = producer.divide();

@@ -4,11 +4,11 @@ use crate::prelude::*;
 use crate::small_channel::small_channel;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub(crate) fn schedule_depjoin<'f, P, T, R>(producer: P, reducer: &R) -> T
+pub(crate) fn schedule_depjoin<'f, P, R>(producer: P, reducer: &R) -> P::Item
 where
-    P: Producer<Item = T>,
-    T: Send,
-    R: Reducer<T>,
+    P: Producer,
+    P::Item: Send,
+    R: Reducer<P::Item>,
 {
     if producer.should_be_divided() {
         let cleanup = AtomicBool::new(false);
