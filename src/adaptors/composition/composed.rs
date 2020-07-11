@@ -120,7 +120,7 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
-    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
+    fn scheduler<'s, P: 's, R: 's>(&self) -> Box<dyn Scheduler<P, R> + 's>
     where
         P: Producer,
         P::Item: Send,

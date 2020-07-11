@@ -1,5 +1,6 @@
 use crate::adaptors::{
     bound_depth::BoundDepth,
+    by_blocks::ByBlocks,
     cap::Cap,
     composition::Composed,
     composition::ComposedCounter,
@@ -101,7 +102,7 @@ pub trait Producer: Send + Iterator + Divisible {
         }
     }
     fn preview(&self, index: usize) -> Self::Item;
-    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
+    fn scheduler<'s, P: 's, R: 's>(&self) -> Box<dyn Scheduler<P, R> + 's>
     where
         P: Producer,
         P::Item: Send,
@@ -223,6 +224,12 @@ pub trait ParallelIterator: Sized {
             identity: &identity,
         };
         self.drive(consumer)
+    }
+
+    /// add external scheduler to add a series of sequential
+    /// steps on macro blocks.
+    fn by_blocks(self) -> ByBlocks<Self> {
+        ByBlocks { base: self }
     }
 
     fn composed(self) -> Composed<Self> {
@@ -383,7 +390,7 @@ where
             identity: &identity,
             stop: &stop,
         };
-        self.drive(consumer)
+        self.by_blocks().drive(consumer)
     }
 }
 

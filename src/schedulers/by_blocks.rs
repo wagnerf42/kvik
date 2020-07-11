@@ -2,11 +2,11 @@
 //! an internal parallel scheduler.
 use crate::prelude::*;
 
-pub(crate) struct ByBlocksScheduler<P, R> {
-    inner_scheduler: Box<dyn Scheduler<P, R>>,
+pub(crate) struct ByBlocksScheduler<'s, P, R> {
+    pub(crate) inner_scheduler: Box<dyn Scheduler<P, R> + 's>,
 }
 
-impl<P, R> Scheduler<P, R> for ByBlocksScheduler<P, R>
+impl<'s, P, R> Scheduler<P, R> for ByBlocksScheduler<'s, P, R>
 where
     P: Producer,
     P::Item: Send,

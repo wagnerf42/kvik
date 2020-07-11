@@ -19,7 +19,7 @@ impl<I: Iterator> Iterator for ByBlocks<I> {
 impl<P: Producer> Divisible for ByBlocks<P> {
     type Controlled = P::Controlled;
     fn should_be_divided(&self) -> bool {
-        false
+        self.base.should_be_divided()
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
@@ -38,22 +38,15 @@ impl<Q: Producer> Producer for ByBlocks<Q> {
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
-    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
+    fn scheduler<'s, P: 's, R: 's>(&self) -> Box<dyn Scheduler<P, R> + 's>
     where
         P: Producer,
         P::Item: Send,
         R: Reducer<P::Item>,
     {
-        unimplemented!()
-        // there might be a solution to this pb.
-        // we can add a lifetime in Consumer
-        // something like Consumer<'s, Item>.
-        // then we require the scheduler method to return
-        // Box<dyn Scheduler<P, R> + 's>.
-        // then we could use 's at the right place ?
-        // Box::new(ByBlocksScheduler {
-        //     inner_scheduler: self.base.scheduler(),
-        // })
+        Box::new(ByBlocksScheduler {
+            inner_scheduler: self.base.scheduler(),
+        })
     }
 }
 

@@ -13,8 +13,8 @@ fn main() {
             //     || Ok(()),
             //     |_, e| if e == 4_999_999 { Err(e) } else { Ok(()) },
             // )
-            // .rayon(8) // TODO: this won't work :-(
             .size_limit(10_000)
+            // .rayon(3) :-( TODO: does not work
             .try_reduce(|| (), |_, _| Ok(()));
         assert_eq!(s, Err(4_999_999));
     });
