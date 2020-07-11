@@ -19,9 +19,10 @@ use crate::adaptors::{
     zip::Zip,
 };
 use crate::schedulers::schedule_join;
+use crate::try_fold::try_fold;
 use crate::wrap::Wrap;
 use crate::Try;
-use std::sync::atomic::{AtomicBool, AtomicIsize};
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 
 #[cfg(feature = "logs")]
 use crate::adaptors::log::Log;
@@ -109,59 +110,49 @@ pub trait Producer: Send + Iterator + Divisible {
     }
 }
 
-pub(crate) struct ReduceCallback<OP, ID> {
-    op: OP,
-    identity: ID,
-}
-
-struct TryReduceCallback<OP, ID> {
-    op: OP,
-    identity: ID,
-}
-
-impl<I, T, OP, ID> ProducerCallback<I> for TryReduceCallback<OP, ID>
-where
-    OP: Fn(T, T) -> I + Sync + Send,
-    ID: Fn() -> T + Sync + Send,
-    I: Try<Ok = T> + Send,
-{
-    type Output = I;
-    fn call<P>(self, producer: P) -> Self::Output
-    where
-        P: Producer<Item = I>,
-    {
-        let stop = AtomicBool::new(false);
-        let sizes = std::iter::successors(Some(rayon::current_num_threads()), |s| {
-            Some(s.saturating_mul(2))
-        });
-        // let's get a sequential iterator of producers of increasing sizes
-        let producers = sizes.scan(Some(producer), |p, s| {
-            let remaining_producer = p.take().unwrap();
-            let (_, upper_bound) = remaining_producer.size_hint();
-            let capped_size = if let Some(bound) = upper_bound {
-                if bound == 0 {
-                    return None;
-                } else {
-                    s.min(bound)
-                }
-            } else {
-                s
-            };
-            let (left, right) = remaining_producer.divide_at(capped_size);
-            *p = Some(right);
-            Some(left)
-        });
-        unimplemented!()
-        //        try_fold(
-        //            &mut producers.map(|p| schedule_join_try_reduce(p, &self, &stop)),
-        //            (self.identity)(),
-        //            |previous_ok, current_result| match current_result.into_result() {
-        //                Ok(r) => (self.op)(previous_ok, r),
-        //                Err(e) => Try::from_error(e),
-        //            },
-        //        )
-    }
-}
+// impl<I, T, OP, ID> ProducerCallback<I> for TryReduceCallback<OP, ID>
+// where
+//     OP: Fn(T, T) -> I + Sync + Send,
+//     ID: Fn() -> T + Sync + Send,
+//     I: Try<Ok = T> + Send,
+// {
+//     type Output = I;
+//     fn call<P>(self, producer: P) -> Self::Output
+//     where
+//         P: Producer<Item = I>,
+//     {
+//         let stop = AtomicBool::new(false);
+//         let sizes = std::iter::successors(Some(rayon::current_num_threads()), |s| {
+//             Some(s.saturating_mul(2))
+//         });
+//         // let's get a sequential iterator of producers of increasing sizes
+//         let producers = sizes.scan(Some(producer), |p, s| {
+//             let remaining_producer = p.take().unwrap();
+//             let (_, upper_bound) = remaining_producer.size_hint();
+//             let capped_size = if let Some(bound) = upper_bound {
+//                 if bound == 0 {
+//                     return None;
+//                 } else {
+//                     s.min(bound)
+//                 }
+//             } else {
+//                 s
+//             };
+//             let (left, right) = remaining_producer.divide_at(capped_size);
+//             *p = Some(right);
+//             Some(left)
+//         });
+//         unimplemented!()
+//         //        try_fold(
+//         //            &mut producers.map(|p| schedule_join_try_reduce(p, &self, &stop)),
+//         //            (self.identity)(),
+//         //            |previous_ok, current_result| match current_result.into_result() {
+//         //                Ok(r) => (self.op)(previous_ok, r),
+//         //                Err(e) => Try::from_error(e),
+//         //            },
+//         //        )
+//     }
+// }
 
 pub trait ParallelIterator: Sized {
     type Item: Send;
@@ -415,8 +406,13 @@ where
         ID: Fn() -> T + Sync + Send,
         Self::Item: Try<Ok = T>,
     {
-        let reducer = TryReduceCallback { identity, op };
-        self.with_producer(reducer)
+        let stop = AtomicBool::new(false);
+        let consumer = TryReduceConsumer {
+            op: &op,
+            identity: &identity,
+            stop: &stop,
+        };
+        self.drive(consumer)
     }
 }
 
@@ -542,8 +538,13 @@ impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
     }
 }
 
+//TODO: we could separate folder and reducer to remove one pointer level
 pub trait Reducer<Result>: Sync {
+    // we need this guy for the adaptive scheduler
     fn identity(&self) -> Result;
+    fn fold<P>(&self, producer: P) -> Result
+    where
+        P: Producer<Item = Result>;
     fn reduce(&self, left: Result, right: Result) -> Result;
 }
 
@@ -575,8 +576,15 @@ where
     OP: Fn(Item, Item) -> Item + Send + Sync,
     ID: Fn() -> Item + Send + Sync,
 {
+    //TODO: we will need a partial fold
     fn identity(&self) -> Item {
         (self.identity)()
+    }
+    fn fold<P>(&self, producer: P) -> Item
+    where
+        P: Producer<Item = Item>,
+    {
+        producer.fold((self.identity)(), self.op)
     }
     fn reduce(&self, left: Item, right: Item) -> Item {
         (self.op)(left, right)
@@ -615,5 +623,96 @@ where
         P: Producer<Item = T>,
     {
         self.0.consume_producer(producer)
+    }
+}
+
+// try_reduce consumer
+pub(crate) struct TryReduceConsumer<'f, OP, ID> {
+    pub(crate) op: &'f OP,
+    pub(crate) identity: &'f ID,
+    pub(crate) stop: &'f AtomicBool,
+}
+
+impl<'f, OP, ID> Clone for TryReduceConsumer<'f, OP, ID> {
+    fn clone(&self) -> Self {
+        TryReduceConsumer {
+            op: self.op,
+            identity: self.identity,
+            stop: self.stop,
+        }
+    }
+}
+
+impl<'f, T, Item, OP, ID> Reducer<Item> for TryReduceConsumer<'f, OP, ID>
+where
+    OP: Fn(T, T) -> Item + Send + Sync,
+    ID: Fn() -> T + Send + Sync,
+    Item: Try<Ok = T>,
+{
+    //TODO: we will need a partial fold
+    fn identity(&self) -> Item {
+        Item::from_ok((self.identity)())
+    }
+    fn fold<P>(&self, mut producer: P) -> Item
+    where
+        P: Producer<Item = Item>,
+    {
+        if self.stop.load(Ordering::Relaxed) {
+            self.identity()
+        } else {
+            let folded = try_fold(
+                &mut producer,
+                self.identity().into_result().ok().unwrap(),
+                |a, b| match b.into_result() {
+                    Err(b_err) => Item::from_error(b_err),
+                    Ok(b_ok) => (self.op)(a, b_ok),
+                },
+            );
+            match folded.into_result() {
+                Err(folded_err) => {
+                    self.stop.store(true, Ordering::Relaxed);
+                    Item::from_error(folded_err)
+                }
+                Ok(folded_ok) => Item::from_ok(folded_ok),
+            }
+        }
+    }
+    fn reduce(&self, left: Item, right: Item) -> Item {
+        match left.into_result() {
+            Err(left_error) => Item::from_error(left_error),
+            Ok(left_ok) => match right.into_result() {
+                Err(right_error) => Item::from_error(right_error),
+                Ok(right_ok) => {
+                    let final_result = (self.op)(left_ok, right_ok);
+                    match final_result.into_result() {
+                        Err(final_err) => {
+                            self.stop.store(true, Ordering::Relaxed);
+                            Item::from_error(final_err)
+                        }
+                        Ok(final_ok) => Item::from_ok(final_ok),
+                    }
+                }
+            },
+        }
+    }
+}
+
+impl<'f, T, Item, OP, ID> Consumer<Item> for TryReduceConsumer<'f, OP, ID>
+where
+    OP: Fn(T, T) -> Item + Send + Sync,
+    ID: Fn() -> T + Send + Sync,
+    Item: Try<Ok = T> + Send,
+{
+    type Result = Item;
+    type Reducer = Self;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let scheduler = producer.scheduler();
+        scheduler(producer, &self)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self
     }
 }

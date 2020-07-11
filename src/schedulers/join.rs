@@ -15,6 +15,6 @@ where
         );
         reducer.reduce(left_r, right_r)
     } else {
-        producer.fold(reducer.identity(), |a, b| reducer.reduce(a, b))
+        reducer.fold(producer)
     }
 }

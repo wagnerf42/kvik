@@ -41,6 +41,6 @@ where
         );
         left_r.or(right_r).unwrap()
     } else {
-        producer.fold(reducer.identity(), |a, b| reducer.reduce(a, b))
+        reducer.fold(producer)
     }
 }

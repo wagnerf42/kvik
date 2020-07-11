@@ -6,5 +6,5 @@ where
     P: Producer,
     R: Reducer<P::Item>,
 {
-    producer.fold(reducer.identity(), |a, b| reducer.reduce(a, b))
+    reducer.fold(producer)
 }
