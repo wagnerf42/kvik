@@ -81,7 +81,7 @@ macro_rules! scheduler_adaptor {
             I: ParallelIterator,
         {
             type Item = I::Item;
-            type Controlled = False;
+            type Controlled = I::Controlled;
             type Enumerable = False;
             fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
                 let consumer = $type { base: consumer };

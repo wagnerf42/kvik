@@ -394,6 +394,20 @@ pub trait TryReducible: ParallelIterator {
             Err(_) => false,
         }
     }
+    fn all_adaptive<P>(self, predicate: P) -> bool
+    where
+        Self: ParallelIterator<Controlled = True>,
+        P: Fn(Self::Item) -> bool + Sync + Send,
+    {
+        match self
+            .map(|e| if predicate(e) { Ok(()) } else { Err(()) })
+            .adaptive()
+            .try_reduce(|| (), |_, _| Ok(()))
+        {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
 }
 
 impl<I> TryReducible for I
