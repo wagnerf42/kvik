@@ -1,10 +1,10 @@
 //! Adaptive reductions
 
-use crate::join_context_policy::JoinContextPolicyProducer;
 use crate::prelude::*;
 use crate::small_channel::small_channel;
 use crate::traits::schedule_join;
 use crate::Blocked;
+use crate::{join_context_policy::JoinContextPolicyProducer, upper_bound::JoinPolicyProducer};
 
 pub(crate) trait AdaptiveProducer: Producer {
     fn completed(&self) -> bool;
@@ -270,6 +270,40 @@ where
         divide: &divide,
         work: &work,
         should_divide: &should_be_divided,
+    };
+    let identity = || ();
+    let op = |_, _| ();
+    let reducer = ReduceCallback {
+        op: &op,
+        identity: &identity,
+    };
+    adaptive_scheduler(&reducer, worker, ());
+}
+
+pub fn work_jp<S, C, D, W, SD>(
+    init: S,
+    completed: C,
+    divide: D,
+    work: W,
+    should_be_divided: SD,
+    limit: u32,
+) where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    D: Fn(S) -> (S, S) + Sync,
+    W: Fn(&mut S, usize) + Sync,
+    SD: Fn(&S) -> bool + Sync,
+{
+    let worker = Worker {
+        state: init,
+        completed: &completed,
+        divide: &divide,
+        work: &work,
+        should_divide: &should_be_divided,
+    };
+    let worker = JoinPolicyProducer {
+        base: worker,
+        limit,
     };
     let identity = || ();
     let op = |_, _| ();

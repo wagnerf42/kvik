@@ -11,8 +11,10 @@ mod lower_bound;
 pub use adaptive::work;
 mod algorithms;
 pub use algorithms::iter_sort::{iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon};
-pub use algorithms::manual_merge::{adaptive_slice_merge, jc_slice_merge};
-pub use algorithms::slice_merge_sort::{slice_par_sort, slice_sort_jc_jc};
+pub use algorithms::manual_merge::{adaptive_jp_slice_merge, adaptive_slice_merge, jc_slice_merge};
+pub use algorithms::slice_merge_sort::{
+    slice_par_sort, slice_sort_jc_adaptive_jp, slice_sort_jc_jc,
+};
 mod cap;
 mod composed;
 mod composed_counter;

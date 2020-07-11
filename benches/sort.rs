@@ -7,7 +7,8 @@ extern crate rayon_try_fold;
 
 use rand::prelude::*;
 use rayon_try_fold::{
-    iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon, slice_par_sort, slice_sort_jc_jc,
+    iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon, slice_par_sort,
+    slice_sort_jc_adaptive_jp, slice_sort_jc_jc,
 };
 use std::time::Duration;
 
@@ -119,6 +120,26 @@ fn sort_benchmarks(c: &mut Criterion) {
                 |(tp, mut input)| {
                     tp.install(|| {
                         slice_sort_jc_jc(&mut input);
+                        input
+                    });
+                },
+            )
+        })
+        .with_function("slice sort JC adaptive JP", |b, nt| {
+            b.iter_with_setup(
+                || {
+                    let tp = rayon::ThreadPoolBuilder::new()
+                        .num_threads(*nt)
+                        .build()
+                        .expect("Couldn't build thread pool");
+                    let mut input = (0..PROBLEM_SIZE).collect::<Vec<_>>();
+                    let mut rng = rand::thread_rng();
+                    input.shuffle(&mut rng);
+                    (tp, input)
+                },
+                |(tp, mut input)| {
+                    tp.install(|| {
+                        slice_sort_jc_adaptive_jp(&mut input);
                         input
                     });
                 },

@@ -2,7 +2,8 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon_try_fold::{
-    iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon, slice_par_sort, slice_sort_jc_jc,
+    iter_sort_jc_adaptive, iter_sort_jc_jc, iter_sort_jc_rayon, slice_par_sort,
+    slice_sort_jc_adaptive_jp, slice_sort_jc_jc,
 };
 use std::env;
 
@@ -43,6 +44,18 @@ fn main() {
                 },
                 |mut v| {
                     slice_par_sort(&mut v);
+                    v
+                },
+            )
+            .attach_algorithm_nodisplay_with_setup(
+                "slice sort JC adaptive JP",
+                || {
+                    let mut input = (0..PROBLEM_SIZE).collect::<Vec<u32>>();
+                    input.shuffle(&mut thread_rng());
+                    input
+                },
+                |mut v| {
+                    slice_sort_jc_adaptive_jp(&mut v);
                     v
                 },
             )

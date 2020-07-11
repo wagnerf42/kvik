@@ -1,9 +1,9 @@
-use crate::prelude::*;
+use crate::{adaptive::AdaptiveProducer, prelude::*};
 //TODO: As of now this won't really work with the adaptive scheduler. Need to think what it even means in
 //that context?
-struct JoinPolicyProducer<I> {
-    base: I,
-    limit: u32,
+pub(crate) struct JoinPolicyProducer<I> {
+    pub(crate) base: I,
+    pub(crate) limit: u32,
 }
 
 impl<I> Iterator for JoinPolicyProducer<I>
@@ -52,6 +52,21 @@ where
     }
     fn should_be_divided(&self) -> bool {
         self.limit > 0 && self.base.should_be_divided()
+    }
+}
+impl<I> AdaptiveProducer for JoinPolicyProducer<I>
+where
+    I: AdaptiveProducer,
+{
+    fn completed(&self) -> bool {
+        self.base.completed()
+    }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        self.base.partial_fold(init, fold_op, limit)
     }
 }
 

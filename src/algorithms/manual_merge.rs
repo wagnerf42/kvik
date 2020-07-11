@@ -1,4 +1,4 @@
-use crate::adaptive::work_jc;
+use crate::adaptive::{work_jc, work_jp};
 use crate::utils::slice_utils::{subslice_without_first_value, subslice_without_last_value};
 use crate::work;
 
@@ -283,6 +283,29 @@ pub fn jc_slice_merge<T: Copy + Ord + Send + Sync>(
         out_index: 0,
     };
     work_jc(
+        merger,
+        |m| m.out_index == m.out.len(),
+        |m| m.divide(),
+        |m, s| m.manual_merge(s),
+        |m| m.check_triviality(),
+        limit,
+    );
+}
+pub fn adaptive_jp_slice_merge<T: Copy + Ord + Send + Sync>(
+    left: &mut [T],
+    right: &mut [T],
+    output: &mut [T],
+    limit: u32,
+) {
+    let merger = Merger {
+        a: left,
+        b: right,
+        a_index: 0,
+        b_index: 0,
+        out: output,
+        out_index: 0,
+    };
+    work_jp(
         merger,
         |m| m.out_index == m.out.len(),
         |m| m.divide(),
