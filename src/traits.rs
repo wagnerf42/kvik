@@ -111,50 +111,6 @@ pub trait Producer: Send + Iterator + Divisible {
     }
 }
 
-// impl<I, T, OP, ID> ProducerCallback<I> for TryReduceCallback<OP, ID>
-// where
-//     OP: Fn(T, T) -> I + Sync + Send,
-//     ID: Fn() -> T + Sync + Send,
-//     I: Try<Ok = T> + Send,
-// {
-//     type Output = I;
-//     fn call<P>(self, producer: P) -> Self::Output
-//     where
-//         P: Producer<Item = I>,
-//     {
-//         let stop = AtomicBool::new(false);
-//         let sizes = std::iter::successors(Some(rayon::current_num_threads()), |s| {
-//             Some(s.saturating_mul(2))
-//         });
-//         // let's get a sequential iterator of producers of increasing sizes
-//         let producers = sizes.scan(Some(producer), |p, s| {
-//             let remaining_producer = p.take().unwrap();
-//             let (_, upper_bound) = remaining_producer.size_hint();
-//             let capped_size = if let Some(bound) = upper_bound {
-//                 if bound == 0 {
-//                     return None;
-//                 } else {
-//                     s.min(bound)
-//                 }
-//             } else {
-//                 s
-//             };
-//             let (left, right) = remaining_producer.divide_at(capped_size);
-//             *p = Some(right);
-//             Some(left)
-//         });
-//         unimplemented!()
-//         //        try_fold(
-//         //            &mut producers.map(|p| schedule_join_try_reduce(p, &self, &stop)),
-//         //            (self.identity)(),
-//         //            |previous_ok, current_result| match current_result.into_result() {
-//         //                Ok(r) => (self.op)(previous_ok, r),
-//         //                Err(e) => Try::from_error(e),
-//         //            },
-//         //        )
-//     }
-// }
-
 pub trait ParallelIterator: Sized {
     type Item: Send;
     type Controlled;
@@ -557,9 +513,9 @@ impl<A: Sync + Send> FromParallelIterator<A> for Vec<A> {
 pub trait Reducer<Result>: Sync {
     // we need this guy for the adaptive scheduler
     fn identity(&self) -> Result;
-    fn fold<P>(&self, producer: P) -> Result
+    fn fold<I>(&self, iterator: I) -> Result
     where
-        P: Producer<Item = Result>;
+        I: Iterator<Item = Result>;
     fn reduce(&self, left: Result, right: Result) -> Result;
 }
 
@@ -595,11 +551,11 @@ where
     fn identity(&self) -> Item {
         (self.identity)()
     }
-    fn fold<P>(&self, producer: P) -> Item
+    fn fold<I>(&self, iterator: I) -> Item
     where
-        P: Producer<Item = Item>,
+        I: Iterator<Item = Item>,
     {
-        producer.fold((self.identity)(), self.op)
+        iterator.fold((self.identity)(), self.op)
     }
     fn reduce(&self, left: Item, right: Item) -> Item {
         (self.op)(left, right)
@@ -668,15 +624,15 @@ where
     fn identity(&self) -> Item {
         Item::from_ok((self.identity)())
     }
-    fn fold<P>(&self, mut producer: P) -> Item
+    fn fold<I>(&self, mut iterator: I) -> Item
     where
-        P: Producer<Item = Item>,
+        I: Iterator<Item = Item>,
     {
         if self.stop.load(Ordering::Relaxed) {
             self.identity()
         } else {
             let folded = try_fold(
-                &mut producer,
+                &mut iterator,
                 self.identity().into_result().ok().unwrap(),
                 |a, b| match b.into_result() {
                     Err(b_err) => Item::from_error(b_err),

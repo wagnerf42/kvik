@@ -1,4 +1,5 @@
 pub(crate) mod bound_depth;
+pub(crate) mod by_blocks;
 pub(crate) mod cap;
 pub(crate) mod composition;
 pub(crate) mod even_levels;
