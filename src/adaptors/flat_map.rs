@@ -1,7 +1,6 @@
 //! finally, the freaking monad.
 use super::map::MapProducer;
 use crate::prelude::*;
-use crate::schedulers::schedule_join;
 
 pub struct FlatMap<I, F> {
     pub(crate) base: I,
@@ -65,7 +64,8 @@ where
             base: producer,
             op: &inner,
         };
-        schedule_join(map_producer, &self.clone().to_reducer())
+        let map_scheduler = map_producer.scheduler();
+        map_scheduler.schedule(map_producer, &self.clone().to_reducer())
     }
     fn to_reducer(self) -> Self::Reducer {
         self.base.to_reducer()

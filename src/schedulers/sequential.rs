@@ -1,10 +1,15 @@
 //! sequential scheduler
 use crate::prelude::*;
 
-pub(crate) fn schedule_sequential<P, R>(producer: P, reducer: &R) -> P::Item
+pub(crate) struct SequentialScheduler;
+
+impl<P, R> Scheduler<P, R> for SequentialScheduler
 where
     P: Producer,
+    P::Item: Send,
     R: Reducer<P::Item>,
 {
-    reducer.fold(producer)
+    fn schedule(&self, producer: P, reducer: &R) -> P::Item {
+        reducer.fold(producer)
+    }
 }

@@ -129,7 +129,7 @@ where
     fn preview(&self, _: usize) -> Self::Item {
         panic!("FilterProducer is not previewable")
     }
-    fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
+    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
     where
         P: Producer,
         P::Item: Send,

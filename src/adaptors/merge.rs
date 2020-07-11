@@ -290,12 +290,12 @@ where
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a merge")
     }
-    fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
+    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
     where
         P: Producer,
         P::Item: Send,
         R: Reducer<P::Item>,
     {
-        &crate::schedulers::schedule_adaptive
+        Box::new(crate::schedulers::AdaptiveScheduler)
     }
 }

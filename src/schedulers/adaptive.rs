@@ -3,6 +3,9 @@ use crate::prelude::*;
 use crate::small_channel::small_channel;
 use crate::Blocked;
 
+//TODO: add block sizes ??
+pub(crate) struct AdaptiveScheduler;
+
 pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
     // TODO: cap
     std::iter::successors(Some(1), |old: &usize| {
@@ -10,15 +13,17 @@ pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
     })
 }
 
-pub(crate) fn schedule_adaptive<P, R>(producer: P, reducer: &R) -> P::Item
+impl<P, R> Scheduler<P, R> for AdaptiveScheduler
 where
     P: Producer,
     P::Item: Send,
     R: Reducer<P::Item>,
 {
-    let initial_output = reducer.identity();
-    let blocked_producer = Blocked::new(producer);
-    adaptive_scheduler(reducer, blocked_producer, initial_output)
+    fn schedule(&self, producer: P, reducer: &R) -> P::Item {
+        let initial_output = reducer.identity();
+        let blocked_producer = Blocked::new(producer);
+        adaptive_scheduler(reducer, blocked_producer, initial_output)
+    }
 }
 
 //TODO: should we really pass the reduce refs by refs ?

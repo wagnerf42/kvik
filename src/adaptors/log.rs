@@ -138,11 +138,11 @@ where
         self.base.preview(index)
     }
 
-    fn scheduler<'r, P, T, R>(&self) -> &'r dyn Fn(P, &'r R) -> T
+    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
     where
-        P: Producer<Item = T>,
-        T: Send,
-        R: Reducer<T>,
+        P: Producer,
+        P::Item: Send,
+        R: Reducer<P::Item>,
     {
         self.base.scheduler()
     }

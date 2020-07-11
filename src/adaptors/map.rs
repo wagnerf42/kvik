@@ -120,7 +120,7 @@ where
         (self.op)(self.base.preview(index))
     }
 
-    fn scheduler<'r, P, R2>(&self) -> &'r dyn Fn(P, &'r R2) -> P::Item
+    fn scheduler<P, R2>(&self) -> Box<dyn Scheduler<P, R2>>
     where
         P: Producer,
         P::Item: Send,

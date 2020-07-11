@@ -18,7 +18,8 @@ use crate::adaptors::{
     size_limit::SizeLimit,
     zip::Zip,
 };
-use crate::schedulers::schedule_join;
+use crate::prelude::*;
+use crate::schedulers::JoinScheduler;
 use crate::try_fold::try_fold;
 use crate::wrap::Wrap;
 use crate::Try;
@@ -100,13 +101,13 @@ pub trait Producer: Send + Iterator + Divisible {
         }
     }
     fn preview(&self, index: usize) -> Self::Item;
-    fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
+    fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
     where
         P: Producer,
         P::Item: Send,
         R: Reducer<P::Item>,
     {
-        &schedule_join
+        Box::new(JoinScheduler)
     }
 }
 
@@ -604,7 +605,7 @@ where
         P: Producer<Item = Item>,
     {
         let scheduler = producer.scheduler();
-        scheduler(producer, &self)
+        scheduler.schedule(producer, &self)
     }
     fn to_reducer(self) -> Self::Reducer {
         self
@@ -710,7 +711,7 @@ where
         P: Producer<Item = Item>,
     {
         let scheduler = producer.scheduler();
-        scheduler(producer, &self)
+        scheduler.schedule(producer, &self)
     }
     fn to_reducer(self) -> Self::Reducer {
         self

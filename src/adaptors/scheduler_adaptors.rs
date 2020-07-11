@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use crate::schedulers::{schedule_adaptive, schedule_depjoin, schedule_sequential};
+use crate::schedulers::{AdaptiveScheduler, DepJoinScheduler, SequentialScheduler};
 
 macro_rules! scheduler_adaptor {
     ($type: ident, $function: ident) => {
@@ -40,13 +40,13 @@ macro_rules! scheduler_adaptor {
             fn preview(&self, index: usize) -> Self::Item {
                 self.base.preview(index)
             }
-            fn scheduler<'r, P, R>(&self) -> &'r dyn Fn(P, &'r R) -> P::Item
+            fn scheduler<P, R>(&self) -> Box<dyn Scheduler<P, R>>
             where
                 P: Producer,
                 P::Item: Send,
                 R: Reducer<P::Item>,
             {
-                &$function
+                Box::new($function)
             }
         }
 
@@ -97,6 +97,6 @@ macro_rules! scheduler_adaptor {
     };
 }
 
-scheduler_adaptor!(DepJoin, schedule_depjoin);
-scheduler_adaptor!(Sequential, schedule_sequential);
-scheduler_adaptor!(Adaptive, schedule_adaptive);
+scheduler_adaptor!(DepJoin, DepJoinScheduler);
+scheduler_adaptor!(Sequential, SequentialScheduler);
+scheduler_adaptor!(Adaptive, AdaptiveScheduler);

@@ -1,3 +1,4 @@
+pub use crate::schedulers::Scheduler;
 pub use crate::traits::Consumer;
 pub use crate::traits::Divisible;
 pub use crate::traits::EnumerableParallelIterator;
