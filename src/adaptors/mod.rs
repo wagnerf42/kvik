@@ -1,4 +1,3 @@
-pub(crate) mod adaptive;
 pub(crate) mod bound_depth;
 pub(crate) mod cap;
 pub(crate) mod composition;
@@ -12,6 +11,6 @@ pub(crate) mod log;
 pub(crate) mod map;
 pub(crate) mod merge;
 pub(crate) mod rayon_policy;
-pub(crate) mod sequential;
+pub(crate) mod scheduler_adaptors;
 pub(crate) mod size_limit;
 pub(crate) mod zip;

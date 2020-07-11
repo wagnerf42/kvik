@@ -296,6 +296,6 @@ where
         T: Send,
         R: Reducer<T>,
     {
-        &crate::adaptive::schedule_adapt
+        &crate::schedulers::schedule_adaptive
     }
 }

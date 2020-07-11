@@ -1,7 +1,7 @@
 //! finally, the freaking monad.
 use super::map::MapProducer;
 use crate::prelude::*;
-use crate::traits::schedule_join;
+use crate::schedulers::schedule_join;
 
 pub struct FlatMap<I, F> {
     pub(crate) base: I,

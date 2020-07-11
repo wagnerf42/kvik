@@ -4,6 +4,7 @@ extern crate rayon_logs as rayon;
 
 mod adaptors;
 mod blocked;
+mod schedulers;
 pub use blocked::Blocked;
 mod adaptive;
 pub use adaptive::work;
