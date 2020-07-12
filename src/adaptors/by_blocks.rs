@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use crate::schedulers::ByBlocksScheduler;
 
 pub struct ByBlocks<I> {
     pub(crate) base: I,
@@ -44,9 +43,7 @@ impl<Q: Producer> Producer for ByBlocks<Q> {
         P::Item: Send,
         R: Reducer<P::Item>,
     {
-        Box::new(ByBlocksScheduler {
-            inner_scheduler: self.base.scheduler(),
-        })
+        self.base.scheduler()
     }
 }
 
@@ -66,8 +63,30 @@ impl<Item, C: Consumer<Item>> Consumer<Item> for ByBlocks<C> {
     where
         P: Producer<Item = Item>,
     {
-        let producer = ByBlocks { base: producer };
-        self.base.consume_producer(producer)
+        let sizes = std::iter::successors(Some(rayon::current_num_threads()), |s| {
+            Some(s.saturating_mul(2))
+        });
+        // let's get a sequential iterator of producers of increasing sizes
+        let producers = sizes.scan(Some(producer), |p, s| {
+            let remaining_producer = p.take().unwrap();
+            let (_, upper_bound) = remaining_producer.size_hint();
+            let capped_size = if let Some(bound) = upper_bound {
+                if bound == 0 {
+                    return None;
+                } else {
+                    s.min(bound)
+                }
+            } else {
+                s
+            };
+            let (left, right) = remaining_producer.divide_at(capped_size);
+            *p = Some(right);
+            Some(left)
+        });
+        self.base
+            .clone()
+            .to_reducer()
+            .fold(&mut producers.map(|p| self.base.clone().consume_producer(p)))
     }
     fn to_reducer(self) -> Self::Reducer {
         self.base.to_reducer()

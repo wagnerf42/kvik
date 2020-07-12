@@ -390,7 +390,7 @@ where
             identity: &identity,
             stop: &stop,
         };
-        self.by_blocks().drive(consumer)
+        self.drive(consumer)
     }
 }
 

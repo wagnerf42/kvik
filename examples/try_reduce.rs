@@ -14,7 +14,8 @@ fn main() {
             //     |_, e| if e == 4_999_999 { Err(e) } else { Ok(()) },
             // )
             .size_limit(10_000)
-            // .rayon(3) :-( TODO: does not work
+            .by_blocks()
+            .rayon(3)
             .try_reduce(|| (), |_, _| Ok(()));
         assert_eq!(s, Err(4_999_999));
     });
