@@ -2,18 +2,17 @@
 #[cfg(feature = "logs")]
 extern crate rayon_logs as rayon;
 
+mod adaptive;
 mod adaptors;
-mod blocked;
 mod schedulers;
 mod try_fold;
-pub use blocked::Blocked;
-mod adaptive;
 pub use adaptive::work;
 mod algorithms;
+mod worker;
 pub use algorithms::iter_sort::iter_par_sort;
-pub use algorithms::manual_merge::adaptive_slice_merge;
+pub use algorithms::manual_merge::{adaptive_slice_merge, Merger};
 pub use algorithms::slice_merge_sort::slice_par_sort;
-mod macro_blocks;
+pub use worker::work_with_output;
 pub mod prelude;
 mod range;
 mod slice;
@@ -175,6 +174,19 @@ mod tests {
     }
     #[test]
     fn filter_test() {
+        const PROBLEM_SIZE: u64 = 1001;
+        let inp: Vec<u64> = (1u64..PROBLEM_SIZE).collect();
+        assert_eq!(
+            inp.into_par_iter()
+                .map(|&elem| elem)
+                .filter(|elem| elem % 2 == 0)
+                .reduce(|| 0, |l, r| l + r),
+            500 * 501
+        );
+    }
+
+    #[test]
+    fn work_with_output_test() {
         const PROBLEM_SIZE: u64 = 1001;
         let inp: Vec<u64> = (1u64..PROBLEM_SIZE).collect();
         assert_eq!(

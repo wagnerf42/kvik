@@ -2,14 +2,6 @@
 
 use crate::prelude::*;
 
-pub(crate) trait AdaptiveProducer: Producer {
-    fn completed(&self) -> bool;
-    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
-    where
-        B: Send,
-        F: Fn(B, Self::Item) -> B;
-}
-
 struct Worker<'f, S, C, D, W, SD> {
     state: S,
     completed: &'f C,
@@ -86,16 +78,6 @@ where
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a Worker")
     }
-}
-
-impl<'f, S, C, D, W, SD> AdaptiveProducer for Worker<'f, S, C, D, W, SD>
-where
-    S: Send,
-    C: Fn(&S) -> bool + Sync,
-    D: Fn(S) -> (S, S) + Sync,
-    W: Fn(&mut S, usize) + Sync,
-    SD: Fn(&S) -> bool + Sync,
-{
     fn completed(&self) -> bool {
         (self.completed)(&self.state)
     }

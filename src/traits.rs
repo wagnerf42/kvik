@@ -92,6 +92,13 @@ pub trait ProducerCallback<T> {
 pub trait Producer: Send + Iterator + Divisible {
     fn sizes(&self) -> (usize, Option<usize>);
     //TODO: this should only be called on left hand sides of infinite iterators
+    fn completed(&self) -> bool {
+        self.sizes().1 == Some(0)
+    }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B;
     fn length(&self) -> usize {
         let (min, max) = self.sizes();
         if let Some(m) = max {

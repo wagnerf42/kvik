@@ -67,6 +67,13 @@ where
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        self.base.partial_fold(init, fold_op, limit)
+    }
     fn scheduler<'s, Q: 's, R: 's>(&self) -> Box<dyn Scheduler<Q, R> + 's>
     where
         Q: Producer,
@@ -74,6 +81,9 @@ where
         R: Reducer<Q::Item>,
     {
         self.base.scheduler()
+    }
+    fn completed(&self) -> bool {
+        self.base.completed()
     }
 }
 

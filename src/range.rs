@@ -52,6 +52,15 @@ macro_rules! implement_traits {
             fn preview(&self, index: usize) -> Self::Item {
                 self.start + index as $x
             }
+            fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+            where
+                B: Send,
+                F: Fn(B, Self::Item) -> B,
+            {
+                let output = (self.start..self.start + (limit as $x)).fold(init, fold_op);
+                self.start += limit as $x;
+                output
+            }
         }
 
         impl PreviewableParallelIterator for Iter<$x> {}

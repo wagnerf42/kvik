@@ -37,6 +37,16 @@ impl<Q: Producer> Producer for ByBlocks<Q> {
     fn preview(&self, index: usize) -> Self::Item {
         self.base.preview(index)
     }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        self.base.partial_fold(init, fold_op, limit)
+    }
+    fn completed(&self) -> bool {
+        self.base.completed()
+    }
     fn scheduler<'s, P: 's, R: 's>(&self) -> Box<dyn Scheduler<P, R> + 's>
     where
         P: Producer,

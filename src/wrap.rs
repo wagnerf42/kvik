@@ -101,4 +101,23 @@ where
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a WrapProducer")
     }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        let maybe_inner_stuff = self.content.take();
+        let maybe_left = maybe_inner_stuff.map(|inner_stuff| {
+            let (left, right) = inner_stuff.divide_at(limit);
+            self.content = Some(right);
+            left
+        });
+        match maybe_left {
+            Some(left) => fold_op(init, left),
+            None => init,
+        }
+    }
+    fn completed(&self) -> bool {
+        self.content.is_none()
+    }
 }

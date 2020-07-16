@@ -137,6 +137,27 @@ where
     {
         self.base.scheduler()
     }
+    fn partial_fold<B, FO>(&mut self, init: B, fold_op: FO, limit: usize) -> B
+    where
+        B: Send,
+        FO: Fn(B, Self::Item) -> B,
+    {
+        let filter_op = self.filter;
+        self.base.partial_fold(
+            init,
+            |acc, item| {
+                if (filter_op)(&item) {
+                    fold_op(acc, item)
+                } else {
+                    acc
+                }
+            },
+            limit,
+        )
+    }
+    fn completed(&self) -> bool {
+        self.base.completed()
+    }
 }
 
 pub struct FilterConsumer<'f, C, F> {

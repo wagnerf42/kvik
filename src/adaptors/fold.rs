@@ -177,6 +177,30 @@ where
     {
         self.base.as_ref().map(|b| b.scheduler()).unwrap()
     }
+    fn partial_fold<B, FO>(&mut self, init: B, yet_another_fold_op: FO, limit: usize) -> B
+    where
+        B: Send,
+        FO: Fn(B, Self::Item) -> B,
+    {
+        //TODO this is most likely SLOWER. I think the best might be to divide_at and then fold and
+        //then fold the result (once).
+        let old_folder = self.fold;
+        let old_id = self.id;
+        match self.base.as_mut() {
+            Some(something) => something.partial_fold(
+                init,
+                |acc, old_item| yet_another_fold_op(acc, (old_folder)((old_id)(), old_item)),
+                limit,
+            ),
+            None => init,
+        }
+    }
+    fn completed(&self) -> bool {
+        self.base
+            .as_ref()
+            .map(|something| something.completed())
+            .unwrap_or(false)
+    }
 }
 
 // consumer

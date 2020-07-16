@@ -80,6 +80,16 @@ impl<'a, T: 'a + Sync> Producer for IterProducer<'a, T> {
     fn preview(&self, index: usize) -> Self::Item {
         &self.slice[self.index + index]
     }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        let (left, right) = self.slice[self.index..].split_at(limit);
+        self.slice = right;
+        self.index = 0;
+        left.into_iter().fold(init, fold_op)
+    }
 }
 
 impl<'a, T: 'a + Sync> PreviewableParallelIterator for Iter<'a, T> {}
@@ -133,5 +143,22 @@ impl<'a, T: 'a + Send + Sync> Producer for std::slice::IterMut<'a, T> {
     }
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("mutable slices are not peekable");
+    }
+    fn partial_fold<B, F>(&mut self, mut init: B, fold_op: F, mut limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        //TODO(@wagnerf42) this needs to be sped up using some unsafe pointer stuff?
+
+        while limit > 0 {
+            if let Some(sorted_elem) = self.next() {
+                init = fold_op(init, sorted_elem);
+                limit -= 1;
+            } else {
+                break;
+            }
+        }
+        init
     }
 }

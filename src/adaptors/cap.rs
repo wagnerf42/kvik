@@ -174,6 +174,22 @@ where
     {
         self.base.as_ref().map(|b| b.scheduler()).unwrap()
     }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        match self.base.as_mut() {
+            Some(inner) => inner.partial_fold(init, fold_op, limit),
+            None => init,
+        }
+    }
+    fn completed(&self) -> bool {
+        self.base
+            .as_ref()
+            .map(|something| something.completed())
+            .unwrap_or(false)
+    }
 }
 
 impl<'l, I> PreviewableParallelIterator for Cap<'l, I> where I: PreviewableParallelIterator {}

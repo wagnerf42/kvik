@@ -1,8 +1,8 @@
 use crate::utils::slice_utils::{subslice_without_first_value, subslice_without_last_value};
-use crate::work;
+use crate::{traits::IntoParallelIterator, work, work_with_output, worker::OwningWorker};
 
-struct Merger<'a, T> {
-    a: &'a [T],
+pub struct Merger<'a, T> {
+    pub a: &'a [T],
     b: &'a [T],
     a_index: usize,
     b_index: usize,
@@ -11,6 +11,17 @@ struct Merger<'a, T> {
 }
 
 impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
+    pub fn new(left: &'a mut [T], right: &'a mut [T], output: &'a mut [T]) -> Self {
+        Merger {
+            a: left,
+            b: right,
+            a_index: 0,
+            b_index: 0,
+            out: output,
+            out_index: 0,
+        }
+    }
+
     fn copy_from_a(&mut self, amount: usize) {
         //PRECONDITION amount <= a.len() - a_index
         //PRECONDITION amount <= out.len() - out_index
@@ -266,4 +277,30 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
         |m, s| m.manual_merge(s),
         |m| m.check_triviality(),
     );
+}
+
+impl<'a, T: 'a> IntoParallelIterator for Merger<'a, T>
+where
+    T: Send + Sync + Ord + Copy,
+{
+    type Item = Self;
+    type Iter = OwningWorker<
+        Merger<'a, T>,
+        fn(&Self) -> bool,
+        fn(Self) -> (Self, Self),
+        fn(Self, usize) -> Self,
+        fn(&Self) -> bool,
+    >;
+    fn into_par_iter(self) -> Self::Iter {
+        work_with_output(
+            self,
+            |m| m.out_index == m.out.len(),
+            |m| m.divide(),
+            |mut m, s| {
+                m.manual_merge(s);
+                m
+            },
+            |m| m.check_triviality(),
+        )
+    }
 }

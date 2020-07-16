@@ -146,6 +146,18 @@ where
     {
         self.base.scheduler()
     }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        rayon_logs::subgraph(self.name, self.size_hint().0, || {
+            self.base.partial_fold(init, fold_op, limit)
+        })
+    }
+    fn completed(&self) -> bool {
+        self.base.completed()
+    }
 }
 
 #[cfg(feature = "logs")]

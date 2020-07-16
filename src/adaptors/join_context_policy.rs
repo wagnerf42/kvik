@@ -76,6 +76,13 @@ impl<I> Producer for JoinContextPolicyProducer<I>
 where
     I: Producer,
 {
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        self.base.partial_fold(init, fold_op, limit)
+    }
     fn sizes(&self) -> (usize, Option<usize>) {
         self.base.sizes()
     }
@@ -89,6 +96,9 @@ where
         R: Reducer<P::Item>,
     {
         self.base.scheduler()
+    }
+    fn completed(&self) -> bool {
+        self.base.completed()
     }
 }
 
