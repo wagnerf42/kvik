@@ -228,8 +228,14 @@ pub trait ParallelIterator: Sized {
 
     /// add external scheduler to add a series of sequential
     /// steps on macro blocks.
-    fn by_blocks(self) -> ByBlocks<Self> {
-        ByBlocks { base: self }
+    fn by_blocks<S>(self, blocks_sizes: S) -> ByBlocks<Self, S>
+    where
+        S: Iterator<Item = usize> + Clone + Send + Sync,
+    {
+        ByBlocks {
+            base: self,
+            blocks_sizes: Some(blocks_sizes),
+        }
     }
 
     fn composed(self) -> Composed<Self> {

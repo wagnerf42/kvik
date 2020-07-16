@@ -14,7 +14,9 @@ fn main() {
             //     |_, e| if e == 4_999_999 { Err(e) } else { Ok(()) },
             // )
             .size_limit(10_000)
-            .by_blocks()
+            .by_blocks(std::iter::successors(Some(2usize), |l| {
+                Some(l.saturating_mul(2))
+            }))
             .rayon(3)
             .try_reduce(|| (), |_, _| Ok(()));
         assert_eq!(s, Err(4_999_999));
