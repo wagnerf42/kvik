@@ -1,7 +1,5 @@
-use crate::adaptive::AdaptiveProducer;
 use crate::prelude::*;
 use crate::small_channel::small_channel;
-use crate::Blocked;
 
 //TODO: add block sizes ??
 pub(crate) struct AdaptiveScheduler;
@@ -21,16 +19,15 @@ where
 {
     fn schedule(&self, producer: P, reducer: &R) -> P::Item {
         let initial_output = reducer.identity();
-        let blocked_producer = Blocked::new(producer);
-        adaptive_scheduler(reducer, blocked_producer, initial_output)
+        adaptive_scheduler(reducer, producer, initial_output)
     }
 }
 
 //TODO: should we really pass the reduce refs by refs ?
-pub(crate) fn adaptive_scheduler<'f, T, P, R>(reducer: &R, producer: P, output: T) -> T
+pub(crate) fn adaptive_scheduler<T, P, R>(reducer: &R, producer: P, output: T) -> T
 where
     T: Send,
-    P: AdaptiveProducer<Item = T>,
+    P: Producer<Item = T>,
     R: Reducer<T>,
 {
     let (sender, receiver) = small_channel();
@@ -39,8 +36,8 @@ where
             .take_while(|_| !sender.receiver_is_waiting())
             .try_fold((producer, output), |(mut producer, output), s| {
                 //TODO: is this the right way to test for the end ?
-                if producer.completed() {
-                    Err(output)
+                if producer.sizes().1 == Some(0) {
+                    Err(producer.fold(output, |a, b| reducer.reduce(a, b)))
                 } else {
                     // TODO: remove closure ?
                     let new_output = producer.partial_fold(output, |a, b| reducer.reduce(a, b), s);

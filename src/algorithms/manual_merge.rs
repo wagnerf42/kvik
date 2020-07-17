@@ -1,8 +1,9 @@
+use crate::prelude::*;
 use crate::utils::slice_utils::{subslice_without_first_value, subslice_without_last_value};
-use crate::work;
+use crate::{traits::IntoParallelIterator, worker::OwningWorker};
 
-struct Merger<'a, T> {
-    a: &'a [T],
+pub struct Merger<'a, T> {
+    pub a: &'a [T],
     b: &'a [T],
     a_index: usize,
     b_index: usize,
@@ -10,90 +11,15 @@ struct Merger<'a, T> {
     out_index: usize,
 }
 
-impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
-    fn copy_from_a(&mut self, amount: usize) {
-        //PRECONDITION amount <= a.len() - a_index
-        //PRECONDITION amount <= out.len() - out_index
-        self.out[self.out_index..self.out_index + amount]
-            .copy_from_slice(&self.a[self.a_index..self.a_index + amount]);
-        self.out_index += amount;
-        self.a_index += amount;
-    }
-    fn copy_from_b(&mut self, amount: usize) {
-        //PRECONDITION amount <= b.len() - b_index
-        //PRECONDITION amount <= out.len() - out_index
-        self.out[self.out_index..self.out_index + amount]
-            .copy_from_slice(&self.b[self.b_index..self.b_index + amount]);
-        self.out_index += amount;
-        self.b_index += amount;
-    }
-
-    fn check_triviality(&self) -> bool {
+impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
+    type Controlled = True;
+    fn should_be_divided(&self) -> bool {
         !(self.a.len() - self.a_index < 2
             || self.b.len() - self.b_index < 2
             || self.a[self.a.len() - 1] <= self.b[self.b_index]
             || self.a[self.a_index] >= self.b[self.b.len() - 1]
             || self.a[self.a_index] == self.a[self.a.len() - 1]
             || self.b[self.b_index] == self.b[self.b.len() - 1])
-    }
-
-    fn manual_merge(&mut self, limit: usize) {
-        let out_len = self.out.len();
-        let to_do = std::cmp::min(out_len - self.out_index, limit);
-        if self.a_index >= self.a.len() {
-            self.copy_from_b(to_do);
-            return;
-        }
-        if self.b_index >= self.b.len() {
-            self.copy_from_a(to_do);
-            return;
-        }
-        let a_remaining = self.a.len() - self.a_index;
-        if self.a[self.a_index + std::cmp::min(to_do, a_remaining - 1)] <= self.b[self.b_index] {
-            self.copy_from_a(std::cmp::min(to_do, a_remaining));
-            if to_do > a_remaining {
-                self.copy_from_b(to_do - a_remaining);
-            }
-            return;
-        }
-        let b_remaining = self.b.len() - self.b_index;
-        if self.b[self.b_index + std::cmp::min(to_do, b_remaining - 1)] < self.a[self.a_index] {
-            let b_remaining = self.b.len() - self.b_index;
-            self.copy_from_b(std::cmp::min(to_do, b_remaining));
-            if to_do > b_remaining {
-                self.copy_from_a(to_do - b_remaining);
-            }
-            return;
-        }
-
-        let mut left_index = self.a_index;
-        let mut right_index = self.b_index;
-        let left_len = self.a.len();
-        let right_len = self.b.len();
-        let left = self.a;
-        let right = self.b;
-        let out = &mut self.out[self.out_index..self.out_index + to_do];
-
-        for o in out {
-            unsafe {
-                if left_index >= left_len {
-                    *o = *right.get_unchecked(right_index);
-                    right_index += 1;
-                } else if right_index >= right_len {
-                    *o = *left.get_unchecked(left_index);
-                    left_index += 1;
-                } else if left.get_unchecked(left_index) <= right.get_unchecked(right_index) {
-                    *o = *left.get_unchecked(left_index);
-                    left_index += 1;
-                } else {
-                    *o = *right.get_unchecked(right_index);
-                    right_index += 1;
-                }
-            }
-        }
-        self.a_index = left_index;
-        self.b_index = right_index;
-        self.out_index += to_do;
     }
     fn divide(self) -> (Self, Self) {
         //PRECONDITION not a trivial merge, as per triviality check.
@@ -135,15 +61,7 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
         };
 
         let shorter_right_bound = shorter_slice[shorter_slice_index..]
-            .binary_search_by(|x| {
-                if x == &pivot {
-                    std::cmp::Ordering::Less
-                } else if x < &pivot {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            })
+            .binary_search_by(|x| x.cmp(&pivot).then(std::cmp::Ordering::Less))
             .unwrap_err();
         let shorter_right_slice = if shorter_slice_index + shorter_right_bound < shorter_slice.len()
         {
@@ -155,15 +73,7 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
         //fast as subslice_without_first_value
         let shorter_left_bound = shorter_slice
             [shorter_slice_index..shorter_slice_index + shorter_right_bound]
-            .binary_search_by(|x| {
-                if x == &pivot {
-                    std::cmp::Ordering::Greater
-                } else if x < &pivot {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            })
+            .binary_search_by(|x| x.cmp(&pivot).then(std::cmp::Ordering::Greater))
             .unwrap_err();
         let shorter_left_slice =
             &shorter_slice[shorter_slice_index..shorter_slice_index + shorter_left_bound];
@@ -244,6 +154,97 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
             )
         }
     }
+    fn divide_at(self, _index: usize) -> (Self, Self) {
+        unimplemented!()
+    }
+}
+
+impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
+    pub fn new(left: &'a mut [T], right: &'a mut [T], output: &'a mut [T]) -> Self {
+        Merger {
+            a: left,
+            b: right,
+            a_index: 0,
+            b_index: 0,
+            out: output,
+            out_index: 0,
+        }
+    }
+
+    fn copy_from_a(&mut self, amount: usize) {
+        //PRECONDITION amount <= a.len() - a_index
+        //PRECONDITION amount <= out.len() - out_index
+        self.out[self.out_index..self.out_index + amount]
+            .copy_from_slice(&self.a[self.a_index..self.a_index + amount]);
+        self.out_index += amount;
+        self.a_index += amount;
+    }
+    fn copy_from_b(&mut self, amount: usize) {
+        //PRECONDITION amount <= b.len() - b_index
+        //PRECONDITION amount <= out.len() - out_index
+        self.out[self.out_index..self.out_index + amount]
+            .copy_from_slice(&self.b[self.b_index..self.b_index + amount]);
+        self.out_index += amount;
+        self.b_index += amount;
+    }
+
+    fn manual_merge(&mut self, limit: usize) {
+        let out_len = self.out.len();
+        let to_do = std::cmp::min(out_len - self.out_index, limit);
+        if self.a_index >= self.a.len() {
+            self.copy_from_b(to_do);
+            return;
+        }
+        if self.b_index >= self.b.len() {
+            self.copy_from_a(to_do);
+            return;
+        }
+        let a_remaining = self.a.len() - self.a_index;
+        if self.a[self.a_index + std::cmp::min(to_do, a_remaining - 1)] <= self.b[self.b_index] {
+            self.copy_from_a(std::cmp::min(to_do, a_remaining));
+            if to_do > a_remaining {
+                self.copy_from_b(to_do - a_remaining);
+            }
+            return;
+        }
+        let b_remaining = self.b.len() - self.b_index;
+        if self.b[self.b_index + std::cmp::min(to_do, b_remaining - 1)] < self.a[self.a_index] {
+            let b_remaining = self.b.len() - self.b_index;
+            self.copy_from_b(std::cmp::min(to_do, b_remaining));
+            if to_do > b_remaining {
+                self.copy_from_a(to_do - b_remaining);
+            }
+            return;
+        }
+
+        let mut left_index = self.a_index;
+        let mut right_index = self.b_index;
+        let left_len = self.a.len();
+        let right_len = self.b.len();
+        let left = self.a;
+        let right = self.b;
+        let out = &mut self.out[self.out_index..self.out_index + to_do];
+
+        for o in out {
+            unsafe {
+                if left_index >= left_len {
+                    *o = *right.get_unchecked(right_index);
+                    right_index += 1;
+                } else if right_index >= right_len
+                    || left.get_unchecked(left_index) <= right.get_unchecked(right_index)
+                {
+                    *o = *left.get_unchecked(left_index);
+                    left_index += 1;
+                } else {
+                    *o = *right.get_unchecked(right_index);
+                    right_index += 1;
+                }
+            }
+        }
+        self.a_index = left_index;
+        self.b_index = right_index;
+        self.out_index += to_do;
+    }
 }
 
 pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
@@ -259,11 +260,16 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
         out: output,
         out_index: 0,
     };
-    work(
-        merger,
-        |m| m.out_index == m.out.len(),
-        |m| m.divide(),
-        |m, s| m.manual_merge(s),
-        |m| m.check_triviality(),
-    );
+    merger.into_par_iter().for_each(|_| ())
+}
+
+impl<'a, T: 'a> IntoParallelIterator for Merger<'a, T>
+where
+    T: Send + Sync + Ord + Copy,
+{
+    type Item = Self;
+    type Iter = OwningWorker<Merger<'a, T>, fn(&Self) -> bool, fn(&mut Self, usize)>;
+    fn into_par_iter(self) -> Self::Iter {
+        self.work(|m| m.out_index == m.out.len(), Merger::manual_merge)
+    }
 }

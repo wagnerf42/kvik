@@ -13,7 +13,7 @@ mod adaptive;
 mod depjoin;
 mod join;
 mod sequential;
-pub(crate) use adaptive::{adaptive_scheduler, AdaptiveScheduler};
+pub(crate) use adaptive::AdaptiveScheduler;
 pub(crate) use depjoin::DepJoinScheduler;
 pub(crate) use join::JoinScheduler;
 pub(crate) use sequential::SequentialScheduler;

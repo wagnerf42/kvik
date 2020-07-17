@@ -75,7 +75,7 @@ where
                 return Some(elem);
             }
         }
-        return None;
+        None
     }
 }
 
@@ -118,6 +118,19 @@ where
     }
 }
 
+fn filter_fold<T, Acc>(
+    predicate: impl Fn(&T) -> bool,
+    fold: impl Fn(Acc, T) -> Acc,
+) -> impl Fn(Acc, T) -> Acc {
+    move |acc, item| {
+        if predicate(&item) {
+            fold(acc, item)
+        } else {
+            acc
+        }
+    }
+}
+
 impl<'f, I, F> Producer for FilterProducer<'f, I, F>
 where
     I: Producer,
@@ -136,6 +149,15 @@ where
         R: Reducer<P::Item>,
     {
         self.base.scheduler()
+    }
+    fn partial_fold<B, FO>(&mut self, init: B, fold_op: FO, limit: usize) -> B
+    where
+        B: Send,
+        FO: Fn(B, Self::Item) -> B,
+    {
+        let filter_op = self.filter;
+        self.base
+            .partial_fold(init, filter_fold(filter_op, fold_op), limit)
     }
 }
 

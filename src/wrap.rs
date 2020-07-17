@@ -96,9 +96,23 @@ where
     D: Divisible + Send,
 {
     fn sizes(&self) -> (usize, Option<usize>) {
-        unimplemented!("I don't know")
+        let size = if self.content.is_some() { 1 } else { 0 };
+        (size, Some(size))
     }
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a WrapProducer")
+    }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        if let Some(content) = self.content.take() {
+            let (left, right) = content.divide_at(limit);
+            self.content = Some(right);
+            fold_op(init, left)
+        } else {
+            init
+        }
     }
 }

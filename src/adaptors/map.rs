@@ -71,6 +71,10 @@ where
     }
 }
 
+fn map_fold<T, B, Acc>(f: impl Fn(T) -> B, g: impl Fn(Acc, B) -> Acc) -> impl Fn(Acc, T) -> Acc {
+    move |acc, elt| g(acc, f(elt))
+}
+
 impl<'f, R, I, F> Divisible for MapProducer<'f, I, F>
 where
     I: Producer,
@@ -127,6 +131,14 @@ where
         R2: Reducer<P::Item>,
     {
         self.base.scheduler()
+    }
+    fn partial_fold<B, FO>(&mut self, init: B, fold_op: FO, limit: usize) -> B
+    where
+        B: Send,
+        FO: Fn(B, Self::Item) -> B,
+    {
+        self.base
+            .partial_fold(init, map_fold(self.op, fold_op), limit)
     }
 }
 

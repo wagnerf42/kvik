@@ -40,7 +40,10 @@ macro_rules! implement_traits {
                 self.divide_at(index as usize)
             }
             fn divide_at(self, index: usize) -> (Self, Self) {
-                let mid = self.start + (index as $x);
+                let mut mid = self.start + (index as $x);
+                if mid > self.end {
+                    mid = self.end
+                }
                 (self.start..mid, mid..self.end)
             }
         }
@@ -51,6 +54,15 @@ macro_rules! implement_traits {
             }
             fn preview(&self, index: usize) -> Self::Item {
                 self.start + index as $x
+            }
+            fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+            where
+                B: Send,
+                F: Fn(B, Self::Item) -> B,
+            {
+                let output = (self.start..self.start + (limit as $x)).fold(init, fold_op);
+                self.start += limit as $x;
+                output
             }
         }
 

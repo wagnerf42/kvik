@@ -1,7 +1,4 @@
 // This uses rayon logs to take a closer look into the very manual slice sort
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use rayon_try_fold::slice_par_sort;
 use std::env;
 
 fn main() {
@@ -9,13 +6,15 @@ fn main() {
     if args.len() < 3 {
         panic!("please enter problem_size num_threads as the two command line args for this");
     }
-    let PROBLEM_SIZE: u32 = args[1].parse().unwrap();
-    let NUM_THREADS: usize = args[2].parse().unwrap();
 
     #[cfg(feature = "logs")]
     {
+        use rand::prelude::*;
+        use rayon_try_fold::slice_par_sort;
+        let problem_size: u32 = args[1].parse().unwrap();
+        let num_threads: usize = args[2].parse().unwrap();
         let thread_pool = rayon_logs::ThreadPoolBuilder::new()
-            .num_threads(NUM_THREADS)
+            .num_threads(num_threads)
             .build()
             .expect("No thread pool for you");
         thread_pool
@@ -23,8 +22,8 @@ fn main() {
             .attach_algorithm_nodisplay_with_setup(
                 "slice par sort",
                 || {
-                    let mut input = (0..PROBLEM_SIZE).collect::<Vec<u32>>();
-                    input.shuffle(&mut thread_rng());
+                    let mut input = (0..problem_size).collect::<Vec<u32>>();
+                    input.shuffle(&mut rand::thread_rng());
                     input
                 },
                 |mut v| {
@@ -32,7 +31,7 @@ fn main() {
                     v
                 },
             )
-            .generate_logs(format!("jccap_{}_{}.html", PROBLEM_SIZE, NUM_THREADS))
+            .generate_logs(format!("jccap_{}_{}.html", problem_size, num_threads))
             .expect("No logs for you");
     }
     #[cfg(not(feature = "logs"))]

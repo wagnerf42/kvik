@@ -78,10 +78,8 @@ where
     {
         super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
-            if allowed {
-                if self.size_hint().0 != 1 {
-                    b.store(false, Ordering::Relaxed);
-                }
+            if allowed && self.size_hint().0 != 1 {
+                b.store(false, Ordering::Relaxed);
             }
 
             self.counter.fetch_sub(1, Ordering::Relaxed);
@@ -160,6 +158,13 @@ where
         R: Reducer<P::Item>,
     {
         self.base.scheduler()
+    }
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    where
+        B: Send,
+        F: Fn(B, Self::Item) -> B,
+    {
+        self.base.partial_fold(init, fold_op, limit)
     }
 }
 

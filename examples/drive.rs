@@ -1,10 +1,9 @@
 //! test for drive and consumers
 
-use rayon_try_fold::prelude::*;
-
 #[cfg(feature = "logs")]
 fn main() {
     use rayon_logs::ThreadPoolBuilder;
+    use rayon_try_fold::prelude::*;
     let pool = ThreadPoolBuilder::new()
         .build()
         .expect("failed building pool");
@@ -28,7 +27,6 @@ fn main() {
                 .into_par_iter()
                 .rayon(2)
                 .flat_map(|e| 0..e)
-                .adaptive()
                 .filter(|&x| x % 2 == 1)
                 .reduce(|| 0, |a, b| a + b),
             80850

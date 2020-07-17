@@ -165,6 +165,21 @@ where
         };
         (min, max)
     }
+    fn partial_fold<BI, F>(&mut self, mut init: BI, fold_op: F, mut limit: usize) -> BI
+    where
+        BI: Send,
+        F: Fn(BI, Self::Item) -> BI,
+    {
+        while limit > 0 {
+            if let Some(sorted_elem) = self.next() {
+                init = fold_op(init, sorted_elem);
+                limit -= 1;
+            } else {
+                break;
+            }
+        }
+        init
+    }
     fn preview(&self, index: usize) -> Self::Item {
         (self.a.preview(index), self.b.preview(index))
     }
