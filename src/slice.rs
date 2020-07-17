@@ -58,7 +58,11 @@ impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
         let mid = (self.slice.len() - self.index) / 2;
         self.divide_at(mid)
     }
-    fn divide_at(self, index: usize) -> (Self, Self) {
+    fn divide_at(self, mut index: usize) -> (Self, Self) {
+        let remaining_len = self.slice[self.index..].len();
+        if index > remaining_len {
+            index = remaining_len
+        }
         let (left, right) = self.slice[self.index..].split_at(index);
         (
             IterProducer {
@@ -129,9 +133,13 @@ impl<'a, T: 'a + Sync> Divisible for std::slice::IterMut<'a, T> {
         let mid = self.len() / 2;
         self.divide_at(mid)
     }
-    fn divide_at(self, index: usize) -> (Self, Self) {
+    fn divide_at(self, mut index: usize) -> (Self, Self) {
         //TODO: can we use the same nifty trick on Iter ?
         let slice = self.into_slice();
+        let len = slice.len();
+        if index > len {
+            index = len
+        }
         let (left, right) = slice.split_at_mut(index);
         (left.iter_mut(), right.iter_mut())
     }

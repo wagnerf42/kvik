@@ -27,7 +27,6 @@ fn main() {
                 .into_par_iter()
                 .rayon(2)
                 .flat_map(|e| 0..e)
-                .adaptive()
                 .filter(|&x| x % 2 == 1)
                 .reduce(|| 0, |a, b| a + b),
             80850

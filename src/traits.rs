@@ -43,6 +43,9 @@ pub trait Divisible: Sized {
     type Controlled;
     fn should_be_divided(&self) -> bool;
     fn divide(self) -> (Self, Self);
+    /// Cut into two at given index (or around given index if you cannot be precise).
+    /// There is zero guarantee that this index is valid for you so you to take
+    /// care of the checks.
     fn divide_at(self, index: usize) -> (Self, Self);
     /// Cut divisible recursively into smaller pieces forming a ParallelIterator.
     /// # Example:
@@ -97,10 +100,6 @@ pub trait ProducerCallback<T> {
         P: Producer<Item = T>;
 }
 
-//TODO: there is a way to not have any method
-//here and use .len from ExactSizeIterator
-//but it require changing with_producer to propagate
-//type constraints. would it be a better option ?
 pub trait Producer: Send + Iterator + Divisible {
     fn sizes(&self) -> (usize, Option<usize>);
     fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
@@ -281,7 +280,6 @@ pub trait ParallelIterator: Sized {
     ///                .into_par_iter()
     ///                .rayon(2)
     ///                .flat_map(|e| 0..e)
-    ///                .adaptive()
     ///                .filter(|&x| x % 2 == 1)
     ///                .reduce(|| 0, |a, b| a + b),
     ///            80850
