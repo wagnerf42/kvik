@@ -96,7 +96,8 @@ where
     D: Divisible + Send,
 {
     fn sizes(&self) -> (usize, Option<usize>) {
-        unimplemented!("I don't know")
+        let size = if self.content.is_some() { 1 } else { 0 };
+        (size, Some(size))
     }
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("you cannot preview a WrapProducer")
@@ -106,18 +107,12 @@ where
         B: Send,
         F: Fn(B, Self::Item) -> B,
     {
-        let maybe_inner_stuff = self.content.take();
-        let maybe_left = maybe_inner_stuff.map(|inner_stuff| {
-            let (left, right) = inner_stuff.divide_at(limit);
+        if let Some(content) = self.content.take() {
+            let (left, right) = content.divide_at(limit);
             self.content = Some(right);
-            left
-        });
-        match maybe_left {
-            Some(left) => fold_op(init, left),
-            None => init,
+            fold_op(init, left)
+        } else {
+            init
         }
-    }
-    fn completed(&self) -> bool {
-        self.content.is_none()
     }
 }

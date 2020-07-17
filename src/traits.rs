@@ -22,6 +22,7 @@ use crate::adaptors::{
 use crate::prelude::*;
 use crate::schedulers::JoinScheduler;
 use crate::try_fold::try_fold;
+use crate::worker::OwningWorker;
 use crate::wrap::Wrap;
 use crate::Try;
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
@@ -54,6 +55,17 @@ pub trait Divisible: Sized {
     /// ```
     fn wrap_iter(self) -> Wrap<Self> {
         Wrap { content: self }
+    }
+    fn work<C, W>(self, completed: C, work: W) -> OwningWorker<Self, C, W>
+    where
+        C: Fn(&Self) -> bool + Sync,
+        W: Fn(&mut Self, usize) + Sync,
+    {
+        OwningWorker {
+            state: self,
+            completed,
+            work,
+        }
     }
 }
 
@@ -91,10 +103,6 @@ pub trait ProducerCallback<T> {
 //type constraints. would it be a better option ?
 pub trait Producer: Send + Iterator + Divisible {
     fn sizes(&self) -> (usize, Option<usize>);
-    //TODO: this should only be called on left hand sides of infinite iterators
-    fn completed(&self) -> bool {
-        self.sizes().1 == Some(0)
-    }
     fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
     where
         B: Send,

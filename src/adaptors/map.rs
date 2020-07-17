@@ -132,9 +132,6 @@ where
     {
         self.base.scheduler()
     }
-    fn completed(&self) -> bool {
-        self.base.completed()
-    }
     fn partial_fold<B, FO>(&mut self, init: B, fold_op: FO, limit: usize) -> B
     where
         B: Send,

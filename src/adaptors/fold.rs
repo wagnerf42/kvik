@@ -47,6 +47,7 @@ where
             F: Fn(R, T) -> R + Sync + Send,
             ID: Fn() -> R + Sync + Send,
             T: Send,
+            R: Send,
         {
             type Output = CB::Output;
 
@@ -55,6 +56,7 @@ where
                 P: Producer<Item = T>,
             {
                 let producer = FoldProducer {
+                    init: None,
                     base: Some(base),
                     id: &self.id,
                     fold: &self.fold,
@@ -65,13 +67,14 @@ where
     }
 }
 
-struct FoldProducer<'f, I, ID, F> {
+struct FoldProducer<'f, T, I, ID, F> {
+    init: Option<T>,
     base: Option<I>,
     id: &'f ID,
     fold: &'f F,
 }
 
-impl<'f, T, I, ID, F> Iterator for FoldProducer<'f, I, ID, F>
+impl<'f, T, I, ID, F> Iterator for FoldProducer<'f, T, I, ID, F>
 where
     I: Iterator,
     F: Fn(T, I::Item) -> T,
@@ -90,11 +93,11 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.base
             .take()
-            .and_then(|b| Some(b.fold((self.id)(), self.fold)))
+            .and_then(|b| Some(b.fold(self.init.take().unwrap_or_else(self.id), self.fold)))
     }
 }
 
-impl<'f, T, I, ID, F> Divisible for FoldProducer<'f, I, ID, F>
+impl<'f, T, I, ID, F> Divisible for FoldProducer<'f, T, I, ID, F>
 where
     I: Producer,
     F: Fn(T, I::Item) -> T,
@@ -119,11 +122,13 @@ where
             .unwrap_or((None, None));
         (
             FoldProducer {
+                init: self.init,
                 base: left,
                 id: self.id,
                 fold: self.fold,
             },
             FoldProducer {
+                init: None,
                 base: right,
                 id: self.id,
                 fold: self.fold,
@@ -141,11 +146,13 @@ where
             .unwrap_or((None, None));
         (
             FoldProducer {
+                init: self.init,
                 base: left,
                 id: self.id,
                 fold: self.fold,
             },
             FoldProducer {
+                init: None,
                 base: right,
                 id: self.id,
                 fold: self.fold,
@@ -154,8 +161,9 @@ where
     }
 }
 
-impl<'f, T, I, ID, F> Producer for FoldProducer<'f, I, ID, F>
+impl<'f, T, I, ID, F> Producer for FoldProducer<'f, T, I, ID, F>
 where
+    T: Send,
     I: Producer,
     F: Fn(T, I::Item) -> T + Sync,
     ID: Fn() -> T + Sync,
@@ -177,29 +185,22 @@ where
     {
         self.base.as_ref().map(|b| b.scheduler()).unwrap()
     }
-    fn partial_fold<B, FO>(&mut self, init: B, yet_another_fold_op: FO, limit: usize) -> B
+    /// same as in worker, we don't use fold op here
+    fn partial_fold<B, FO>(&mut self, init: B, _fold_op: FO, limit: usize) -> B
     where
         B: Send,
         FO: Fn(B, Self::Item) -> B,
     {
-        //TODO this is most likely SLOWER. I think the best might be to divide_at and then fold and
-        //then fold the result (once).
-        let old_folder = self.fold;
-        let old_id = self.id;
-        match self.base.as_mut() {
-            Some(something) => something.partial_fold(
-                init,
-                |acc, old_item| yet_another_fold_op(acc, (old_folder)((old_id)(), old_item)),
+        let inner_fold_op = self.fold;
+        let inner_id = self.id;
+        if let Some(base) = self.base.as_mut() {
+            self.init = Some(base.partial_fold(
+                self.init.take().unwrap_or_else(inner_id),
+                inner_fold_op,
                 limit,
-            ),
-            None => init,
+            ))
         }
-    }
-    fn completed(&self) -> bool {
-        self.base
-            .as_ref()
-            .map(|something| something.completed())
-            .unwrap_or(false)
+        init
     }
 }
 
@@ -223,6 +224,7 @@ impl<'f, C: Clone, ID, F> Clone for FoldConsumer<'f, C, ID, F> {
 
 impl<'f, T, Item, C, ID, F> Consumer<Item> for FoldConsumer<'f, C, ID, F>
 where
+    T: Send,
     C: Consumer<T>,
     F: Fn(T, Item) -> T + Sync,
     ID: Fn() -> T + Sync,
@@ -234,6 +236,7 @@ where
         P: Producer<Item = Item>,
     {
         let fold_producer = FoldProducer {
+            init: None,
             base: Some(producer),
             id: self.id,
             fold: self.fold,

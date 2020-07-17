@@ -184,12 +184,6 @@ where
             None => init,
         }
     }
-    fn completed(&self) -> bool {
-        self.base
-            .as_ref()
-            .map(|something| something.completed())
-            .unwrap_or(false)
-    }
 }
 
 impl<'l, I> PreviewableParallelIterator for Cap<'l, I> where I: PreviewableParallelIterator {}

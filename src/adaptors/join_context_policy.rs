@@ -97,9 +97,6 @@ where
     {
         self.base.scheduler()
     }
-    fn completed(&self) -> bool {
-        self.base.completed()
-    }
 }
 
 pub struct JoinContextPolicy<I> {

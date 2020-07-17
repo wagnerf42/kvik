@@ -2,17 +2,14 @@
 #[cfg(feature = "logs")]
 extern crate rayon_logs as rayon;
 
-mod adaptive;
 mod adaptors;
+mod algorithms;
 mod schedulers;
 mod try_fold;
-pub use adaptive::work;
-mod algorithms;
 mod worker;
 pub use algorithms::iter_sort::iter_par_sort;
 pub use algorithms::manual_merge::{adaptive_slice_merge, Merger};
 pub use algorithms::slice_merge_sort::slice_par_sort;
-pub use worker::work_with_output;
 pub mod prelude;
 mod range;
 mod slice;

@@ -55,9 +55,6 @@ impl<I> Producer for EvenLevelsProducer<I>
 where
     I: Producer,
 {
-    fn completed(&self) -> bool {
-        self.base.completed()
-    }
     fn sizes(&self) -> (usize, Option<usize>) {
         self.base.sizes()
     }

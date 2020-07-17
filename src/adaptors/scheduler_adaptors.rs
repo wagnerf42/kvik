@@ -55,9 +55,6 @@ macro_rules! scheduler_adaptor {
             {
                 self.base.partial_fold(init, fold_op, limit)
             }
-            fn completed(&self) -> bool {
-                self.base.completed()
-            }
         }
 
         // consumer

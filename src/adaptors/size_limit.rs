@@ -80,9 +80,6 @@ where
     {
         self.base.partial_fold(init, fold_op, limit)
     }
-    fn completed(&self) -> bool {
-        self.base.completed()
-    }
 }
 
 pub struct SizeLimit<I> {

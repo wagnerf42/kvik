@@ -44,9 +44,6 @@ impl<Q: Producer> Producer for ByBlocks<Q> {
     {
         self.base.partial_fold(init, fold_op, limit)
     }
-    fn completed(&self) -> bool {
-        self.base.completed()
-    }
     fn scheduler<'s, P: 's, R: 's>(&self) -> Box<dyn Scheduler<P, R> + 's>
     where
         P: Producer,

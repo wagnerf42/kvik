@@ -157,9 +157,6 @@ impl<I: Producer> Producer for RayonProducer<I> {
     {
         self.base.scheduler()
     }
-    fn completed(&self) -> bool {
-        self.base.completed()
-    }
 }
 
 impl<C: Clone> Clone for Rayon<C> {

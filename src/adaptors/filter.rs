@@ -118,6 +118,19 @@ where
     }
 }
 
+fn filter_fold<T, Acc>(
+    predicate: impl Fn(&T) -> bool,
+    fold: impl Fn(Acc, T) -> Acc,
+) -> impl Fn(Acc, T) -> Acc {
+    move |acc, item| {
+        if predicate(&item) {
+            fold(acc, item)
+        } else {
+            acc
+        }
+    }
+}
+
 impl<'f, I, F> Producer for FilterProducer<'f, I, F>
 where
     I: Producer,
@@ -143,20 +156,8 @@ where
         FO: Fn(B, Self::Item) -> B,
     {
         let filter_op = self.filter;
-        self.base.partial_fold(
-            init,
-            |acc, item| {
-                if (filter_op)(&item) {
-                    fold_op(acc, item)
-                } else {
-                    acc
-                }
-            },
-            limit,
-        )
-    }
-    fn completed(&self) -> bool {
-        self.base.completed()
+        self.base
+            .partial_fold(init, filter_fold(filter_op, fold_op), limit)
     }
 }
 

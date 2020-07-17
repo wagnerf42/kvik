@@ -36,7 +36,7 @@ where
             .take_while(|_| !sender.receiver_is_waiting())
             .try_fold((producer, output), |(mut producer, output), s| {
                 //TODO: is this the right way to test for the end ?
-                if producer.completed() {
+                if producer.sizes().1 == Some(0) {
                     Err(producer.fold(output, |a, b| reducer.reduce(a, b)))
                 } else {
                     // TODO: remove closure ?
