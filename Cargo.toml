@@ -31,6 +31,10 @@ harness=false
 name="composed"
 harness=false
 
+[[bench]]
+name="all"
+harness=false
+
 [dev_dependencies]
 criterion="*"
 itertools="*"
