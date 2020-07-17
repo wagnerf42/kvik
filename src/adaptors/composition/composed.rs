@@ -67,10 +67,8 @@ where
 
         super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
-            if allowed {
-                if next_work_size > 1 {
-                    b.store(false, Ordering::Relaxed);
-                }
+            if allowed && next_work_size > 1 {
+                b.store(false, Ordering::Relaxed);
             }
 
             let result = self.base.fold(init, f);

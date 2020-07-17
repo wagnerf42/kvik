@@ -1,6 +1,8 @@
+#[cfg(feature = "logs")]
+extern crate rayon_logs as rayon;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rayon_try_fold::{iter_par_sort, slice_par_sort};
+use rayon_try_fold::iter_par_sort;
 
 const PROBLEM_SIZE: u32 = 1_000_000;
 fn main() {
@@ -19,10 +21,6 @@ fn main() {
     }
     #[cfg(feature = "logs")]
     {
-        let tp = rayon_logs::ThreadPoolBuilder::new()
-            .num_threads(4)
-            .build()
-            .expect("Thread pool build failed");
         let log = tp
             .logging_install(|| {
                 iter_par_sort(&mut input);

@@ -88,7 +88,7 @@ impl<'a, T: 'a + Sync> Producer for IterProducer<'a, T> {
         let (left, right) = self.slice[self.index..].split_at(limit);
         self.slice = right;
         self.index = 0;
-        left.into_iter().fold(init, fold_op)
+        left.iter().fold(init, fold_op)
     }
 }
 

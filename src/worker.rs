@@ -139,7 +139,9 @@ where
         F: Fn(B, Self::Item) -> B,
     {
         let work = self.work;
-        self.state.as_mut().map(|s| work(s, limit));
+        if let Some(s) = self.state.as_mut() {
+            work(s, limit)
+        }
         init
     }
 }

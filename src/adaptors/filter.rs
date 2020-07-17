@@ -75,7 +75,7 @@ where
                 return Some(elem);
             }
         }
-        return None;
+        None
     }
 }
 

@@ -12,7 +12,7 @@ pub fn index_without_first_value<T: Eq>(slice: &[T]) -> usize {
                 .take_while(|&i| i < slice.len())
                 .find(|&i| unsafe { slice.get_unchecked(i) != target })
                 .unwrap_or_else(|| slice.len());
-            let index = slice[..searching_range_end]
+            slice[..searching_range_end]
                 .binary_search_by(|x| {
                     if x.eq(target) {
                         std::cmp::Ordering::Less
@@ -20,8 +20,7 @@ pub fn index_without_first_value<T: Eq>(slice: &[T]) -> usize {
                         std::cmp::Ordering::Greater
                     }
                 })
-                .unwrap_err();
-            index
+                .unwrap_err()
         }
         None => 0,
     }

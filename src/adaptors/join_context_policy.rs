@@ -66,9 +66,7 @@ where
         //In all cases, it is going to ask the base about division, so basically it just has veto
         //powers
         let me = rayon::current_thread_index().unwrap_or(0);
-        self.limit > 0
-            && (!self.is_right || (self.is_right && me != self.my_creator))
-            && self.base.should_be_divided()
+        (me != self.my_creator || !self.is_right) && self.base.should_be_divided() && self.limit > 0
     }
 }
 

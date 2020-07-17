@@ -102,10 +102,8 @@ where
 
         super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
-            if allowed {
-                if next_work_size > 1 {
-                    b.store(false, Ordering::Relaxed);
-                }
+            if allowed && next_work_size > 1 {
+                b.store(false, Ordering::Relaxed);
             }
 
             self.work_count
@@ -131,7 +129,7 @@ where
             ComposedCounterProducer {
                 base: left,
                 initial_size: self.initial_size,
-                work_count: self.work_count.clone(),
+                work_count: self.work_count,
                 threshold: self.threshold,
             },
             ComposedCounterProducer {
@@ -149,7 +147,7 @@ where
             ComposedCounterProducer {
                 base: left,
                 initial_size: self.initial_size,
-                work_count: self.work_count.clone(),
+                work_count: self.work_count,
                 threshold: self.threshold,
             },
             ComposedCounterProducer {

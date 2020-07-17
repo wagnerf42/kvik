@@ -213,7 +213,7 @@ pub trait ParallelIterator: Sized {
     where
         OP: Fn(Self::Item, Self::Item) -> Self::Item + Sync + Send,
     {
-        self.map(|i| Some(i)).reduce(
+        self.map(Some).reduce(
             || None,
             |o1, o2| {
                 if let Some(r1) = o1 {
@@ -272,6 +272,22 @@ pub trait ParallelIterator: Sized {
             reset_counter,
         }
     }
+    /// flat_map
+    /// # Example:
+    /// ```
+    /// use rayon_try_fold::prelude::*;
+    ///        assert_eq!(
+    ///            (0u64..100)
+    ///                .into_par_iter()
+    ///                .rayon(2)
+    ///                .flat_map(|e| 0..e)
+    ///                .adaptive()
+    ///                .filter(|&x| x % 2 == 1)
+    ///                .reduce(|| 0, |a, b| a + b),
+    ///            80850
+    ///        )
+    ///
+    /// ```
     fn flat_map<F, PI>(self, map_op: F) -> FlatMap<Self, F>
     where
         F: Fn(Self::Item) -> PI + Sync + Send,
@@ -321,16 +337,17 @@ pub trait ParallelIterator: Sized {
         .reduce(
             || None,
             |a, b| {
-                if a.is_none() {
-                    b
-                } else if b.is_none() {
-                    a
-                } else {
-                    let (a, b) = (a.unwrap(), b.unwrap());
-                    match compare(&a, &b) {
-                        std::cmp::Ordering::Greater => Some(b),
-                        _ => Some(a),
+                if let Some(a) = a {
+                    if let Some(b) = b {
+                        match compare(&a, &b) {
+                            std::cmp::Ordering::Greater => Some(b),
+                            _ => Some(a),
+                        }
+                    } else {
+                        Some(a)
                     }
+                } else {
+                    b
                 }
             },
         )
@@ -365,27 +382,19 @@ pub trait TryReducible: ParallelIterator {
         Self: ParallelIterator<Controlled = True>,
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
-        match self
-            .map(|e| if predicate(e) { Ok(()) } else { Err(()) })
+        self.map(|e| if predicate(e) { Ok(()) } else { Err(()) })
             .try_reduce(|| (), |_, _| Ok(()))
-        {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+            .is_ok()
     }
     fn all_adaptive<P>(self, predicate: P) -> bool
     where
         Self: ParallelIterator<Controlled = True>,
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
-        match self
-            .map(|e| if predicate(e) { Ok(()) } else { Err(()) })
+        self.map(|e| if predicate(e) { Ok(()) } else { Err(()) })
             .adaptive()
             .try_reduce(|| (), |_, _| Ok(()))
-        {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+            .is_ok()
     }
 }
 

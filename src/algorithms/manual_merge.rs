@@ -61,15 +61,7 @@ impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
         };
 
         let shorter_right_bound = shorter_slice[shorter_slice_index..]
-            .binary_search_by(|x| {
-                if x == &pivot {
-                    std::cmp::Ordering::Less
-                } else if x < &pivot {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            })
+            .binary_search_by(|x| x.cmp(&pivot).then(std::cmp::Ordering::Less))
             .unwrap_err();
         let shorter_right_slice = if shorter_slice_index + shorter_right_bound < shorter_slice.len()
         {
@@ -81,15 +73,7 @@ impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
         //fast as subslice_without_first_value
         let shorter_left_bound = shorter_slice
             [shorter_slice_index..shorter_slice_index + shorter_right_bound]
-            .binary_search_by(|x| {
-                if x == &pivot {
-                    std::cmp::Ordering::Greater
-                } else if x < &pivot {
-                    std::cmp::Ordering::Less
-                } else {
-                    std::cmp::Ordering::Greater
-                }
-            })
+            .binary_search_by(|x| x.cmp(&pivot).then(std::cmp::Ordering::Greater))
             .unwrap_err();
         let shorter_left_slice =
             &shorter_slice[shorter_slice_index..shorter_slice_index + shorter_left_bound];
@@ -246,10 +230,9 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
                 if left_index >= left_len {
                     *o = *right.get_unchecked(right_index);
                     right_index += 1;
-                } else if right_index >= right_len {
-                    *o = *left.get_unchecked(left_index);
-                    left_index += 1;
-                } else if left.get_unchecked(left_index) <= right.get_unchecked(right_index) {
+                } else if right_index >= right_len
+                    || left.get_unchecked(left_index) <= right.get_unchecked(right_index)
+                {
                     *o = *left.get_unchecked(left_index);
                     left_index += 1;
                 } else {
@@ -277,9 +260,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
         out: output,
         out_index: 0,
     };
-    merger
-        .work(|m| m.out_index == m.out.len(), |m, s| m.manual_merge(s))
-        .for_each(|_| ())
+    merger.into_par_iter().for_each(|_| ())
 }
 
 impl<'a, T: 'a> IntoParallelIterator for Merger<'a, T>

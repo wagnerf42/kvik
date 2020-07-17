@@ -93,7 +93,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         self.base
             .take()
-            .and_then(|b| Some(b.fold(self.init.take().unwrap_or_else(self.id), self.fold)))
+            .map(|b| b.fold(self.init.take().unwrap_or_else(self.id), self.fold))
     }
 }
 

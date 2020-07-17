@@ -7,7 +7,7 @@ where
     I: Iterator,
 {
     let mut accum = init;
-    while let Some(x) = iterator.next() {
+    for x in iterator {
         let accum_value = f(accum, x);
         match accum_value.into_result() {
             Ok(e) => {

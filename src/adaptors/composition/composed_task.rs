@@ -78,10 +78,8 @@ where
     {
         super::ALLOW_PARALLELISM.with(|b| {
             let allowed = b.load(Ordering::Relaxed);
-            if allowed {
-                if self.size_hint().0 != 1 {
-                    b.store(false, Ordering::Relaxed);
-                }
+            if allowed && self.size_hint().0 != 1 {
+                b.store(false, Ordering::Relaxed);
             }
 
             self.counter.fetch_sub(1, Ordering::Relaxed);

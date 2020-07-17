@@ -3,17 +3,13 @@ use rand::prelude::*;
 use rayon::prelude::*;
 #[cfg(feature = "logs")]
 use rayon_logs::{prelude::*, ThreadPoolBuilder};
-use rayon_try_fold::{
-    adaptive_slice_merge,
-    prelude::{IntoParallelIterator, ParallelIterator},
-    Merger,
-};
 
 const SIZE: u32 = 10_000_000;
 
 fn main() {
     #[cfg(not(feature = "logs"))]
     {
+        use rayon_try_fold::adaptive_slice_merge;
         let mut rng = rand::thread_rng();
         let mut input = (0..SIZE / 5)
             .cycle()
@@ -30,6 +26,8 @@ fn main() {
     }
     #[cfg(feature = "logs")]
     {
+        use rayon_try_fold::prelude::ParallelIterator;
+        use rayon_try_fold::{prelude::IntoParallelIterator, Merger};
         let mut rng = rand::thread_rng();
         let mut input = (0..SIZE).collect::<Vec<_>>();
         input.shuffle(&mut rng);
@@ -47,7 +45,8 @@ fn main() {
             merger.into_par_iter().bound_depth(2).for_each(|_| ());
         })
         .1
-        .save_svg("merge_adaptor.svg");
+        .save_svg("merge_adaptor.svg")
+        .unwrap();
         //adaptive_slice_merge(left, right, output.as_mut_slice());
         assert!(output.windows(2).all(|w| w[0] <= w[1]));
     }

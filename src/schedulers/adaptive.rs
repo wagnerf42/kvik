@@ -24,7 +24,7 @@ where
 }
 
 //TODO: should we really pass the reduce refs by refs ?
-pub(crate) fn adaptive_scheduler<'f, T, P, R>(reducer: &R, producer: P, output: T) -> T
+pub(crate) fn adaptive_scheduler<T, P, R>(reducer: &R, producer: P, output: T) -> T
 where
     T: Send,
     P: Producer<Item = T>,
