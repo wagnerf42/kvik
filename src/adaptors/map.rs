@@ -140,6 +140,9 @@ where
         self.base
             .partial_fold(init, map_fold(self.op, fold_op), limit)
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        self.base.micro_block_sizes()
+    }
 }
 
 impl<R, I, F> PreviewableParallelIterator for Map<I, F>

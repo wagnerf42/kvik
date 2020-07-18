@@ -14,6 +14,7 @@ use crate::adaptors::{
     join_context_policy::JoinContextPolicy,
     map::Map,
     merge::Merge,
+    microblocks::MicroBlockSizes,
     rayon_policy::Rayon,
     scheduler_adaptors::{Adaptive, DepJoin, Sequential},
     size_limit::SizeLimit,
@@ -124,6 +125,9 @@ pub trait Producer: Send + Iterator + Divisible {
     {
         Box::new(JoinScheduler)
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        (1, usize::MAX)
+    }
 }
 
 pub trait ParallelIterator: Sized {
@@ -200,6 +204,14 @@ pub trait ParallelIterator: Sized {
     ///     The right child of any node is not stolen
     fn join_context_policy(self, limit: u32) -> JoinContextPolicy<Self> {
         JoinContextPolicy { base: self, limit }
+    }
+    /// This allows you to set the micro block sizes of the Adaptive Scheduler.
+    fn micro_block_sizes(self, lower: usize, upper: usize) -> MicroBlockSizes<Self> {
+        MicroBlockSizes {
+            inner: self,
+            lower,
+            upper,
+        }
     }
     fn map<R, F>(self, op: F) -> Map<Self, F>
     where

@@ -157,6 +157,9 @@ impl<I: Producer> Producer for RayonProducer<I> {
     {
         self.base.scheduler()
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        self.base.micro_block_sizes()
+    }
 }
 
 impl<C: Clone> Clone for Rayon<C> {

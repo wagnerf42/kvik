@@ -3,19 +3,20 @@ use crate::utils::slice_utils::{subslice_without_first_value, subslice_without_l
 use crate::{traits::IntoParallelIterator, worker::OwningWorker};
 
 pub struct Merger<'a, T> {
-    pub a: &'a [T],
+    a: &'a [T],
     b: &'a [T],
     a_index: usize,
     b_index: usize,
     out: &'a mut [T],
     out_index: usize,
+    size_cap: usize,
 }
 
 impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
     type Controlled = True;
     fn should_be_divided(&self) -> bool {
-        !(self.a.len() - self.a_index < 2
-            || self.b.len() - self.b_index < 2
+        !(self.a.len() - self.a_index < self.size_cap
+            || self.b.len() - self.b_index < self.size_cap
             || self.a[self.a.len() - 1] <= self.b[self.b_index]
             || self.a[self.a_index] >= self.b[self.b.len() - 1]
             || self.a[self.a_index] == self.a[self.a.len() - 1]
@@ -121,6 +122,7 @@ impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
                     b_index: 0,
                     out: left_out,
                     out_index: 0,
+                    size_cap: self.size_cap,
                 },
                 Merger {
                     a: shorter_right_slice,
@@ -129,6 +131,7 @@ impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
                     b_index: 0,
                     out: right_out,
                     out_index: 0,
+                    size_cap: self.size_cap,
                 },
             )
         } else {
@@ -142,6 +145,7 @@ impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
                     b_index: 0,
                     out: left_out,
                     out_index: 0,
+                    size_cap: self.size_cap,
                 },
                 Merger {
                     a: longer_right_slice,
@@ -150,6 +154,7 @@ impl<'a, T: Copy + std::cmp::Ord> Divisible for Merger<'a, T> {
                     b_index: 0,
                     out: right_out,
                     out_index: 0,
+                    size_cap: self.size_cap,
                 },
             )
         }
@@ -168,6 +173,7 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
             b_index: 0,
             out: output,
             out_index: 0,
+            size_cap: 2,
         }
     }
 
@@ -252,15 +258,35 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
     right: &mut [T],
     output: &mut [T],
 ) {
-    let merger = Merger {
-        a: left,
-        b: right,
-        a_index: 0,
-        b_index: 0,
-        out: output,
-        out_index: 0,
-    };
-    merger.into_par_iter().for_each(|_| ())
+    if rayon::current_num_threads() >= 56 {
+        let merger = Merger {
+            a: left,
+            b: right,
+            a_index: 0,
+            b_index: 0,
+            out: output,
+            out_index: 0,
+            size_cap: 1_000_00,
+        };
+        merger
+            .into_par_iter()
+            .micro_block_sizes(1024, 10_000)
+            .for_each(|_| ())
+    } else {
+        let merger = Merger {
+            a: left,
+            b: right,
+            a_index: 0,
+            b_index: 0,
+            out: output,
+            out_index: 0,
+            size_cap: 2,
+        };
+        merger
+            .into_par_iter()
+            .micro_block_sizes(1024, 10_000)
+            .for_each(|_| ())
+    }
 }
 
 impl<'a, T: 'a> IntoParallelIterator for Merger<'a, T>

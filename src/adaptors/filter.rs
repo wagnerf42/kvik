@@ -159,6 +159,9 @@ where
         self.base
             .partial_fold(init, filter_fold(filter_op, fold_op), limit)
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        self.base.micro_block_sizes()
+    }
 }
 
 pub struct FilterConsumer<'f, C, F> {

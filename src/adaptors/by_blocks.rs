@@ -71,6 +71,9 @@ impl<Q: Producer, S: Clone + Send> Producer for ByBlocks<Q, S> {
     {
         self.base.scheduler()
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        self.base.micro_block_sizes()
+    }
 }
 
 // consumer

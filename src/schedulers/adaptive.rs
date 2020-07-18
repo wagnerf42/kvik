@@ -1,13 +1,15 @@
 use crate::prelude::*;
 use crate::small_channel::small_channel;
 
-//TODO: add block sizes ??
 pub(crate) struct AdaptiveScheduler;
 
-pub(crate) fn block_sizes() -> impl Iterator<Item = usize> {
-    // TODO: cap
-    std::iter::successors(Some(1), |old: &usize| {
-        old.checked_shl(1).or(Some(std::usize::MAX))
+pub(crate) fn block_sizes(lower: usize, upper: usize) -> impl Iterator<Item = usize> {
+    std::iter::successors(Some(lower), move |old: &usize| {
+        if *old >= upper {
+            Some(upper)
+        } else {
+            old.checked_shl(1).or(Some(upper))
+        }
     })
 }
 
@@ -30,9 +32,10 @@ where
     P: Producer<Item = T>,
     R: Reducer<T>,
 {
+    let (lower, upper) = producer.micro_block_sizes();
     let (sender, receiver) = small_channel();
     let (left_result, maybe_right_result): (T, Option<T>) = rayon::join_context(
-        |_| match block_sizes()
+        |_| match block_sizes(lower, upper)
             .take_while(|_| !sender.receiver_is_waiting())
             .try_fold((producer, output), |(mut producer, output), s| {
                 //TODO: is this the right way to test for the end ?

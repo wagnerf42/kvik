@@ -202,6 +202,12 @@ where
         }
         init
     }
+    fn micro_block_sizes(&self) -> (usize, usize) {
+        self.base
+            .as_ref()
+            .map(|inner| inner.micro_block_sizes())
+            .unwrap_or((1, usize::MAX))
+    }
 }
 
 // consumer
