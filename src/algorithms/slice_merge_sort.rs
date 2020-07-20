@@ -42,6 +42,7 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
             (2.0 * (rayon::current_num_threads() as f32).log2().ceil()
                 - (rayon::current_num_threads() as f32).log2().floor()) as u32,
         )
+        .depjoin()
         .even_levels()
         .reduce_with(|(left_input, left_output), (right_input, right_output)| {
             let new_output = fuse_slices(left_output, right_output);
