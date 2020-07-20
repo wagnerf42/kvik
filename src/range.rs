@@ -60,8 +60,9 @@ macro_rules! implement_traits {
                 B: Send,
                 F: Fn(B, Self::Item) -> B,
             {
-                let output = (self.start..self.start + (limit as $x)).fold(init, fold_op);
-                self.start += limit as $x;
+                let next_limit = (self.start + limit as $x).min(self.end);
+                let output = (self.start..next_limit).fold(init, fold_op);
+                self.start = next_limit;
                 output
             }
         }
