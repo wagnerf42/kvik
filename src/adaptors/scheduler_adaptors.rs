@@ -21,7 +21,7 @@ macro_rules! scheduler_adaptor {
         impl<P: Producer> Divisible for $type<P> {
             type Controlled = P::Controlled;
             fn should_be_divided(&self) -> bool {
-                false
+                self.base.should_be_divided()
             }
             fn divide(self) -> (Self, Self) {
                 let (left, right) = self.base.divide();
