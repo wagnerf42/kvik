@@ -21,6 +21,15 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for BoundDepth<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<P> Divisible for BoundDepth<P>
 where
     P: Producer,

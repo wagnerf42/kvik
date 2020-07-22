@@ -18,6 +18,15 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for MicroBlockSizes<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back()
+    }
+}
+
 impl<P> Divisible for MicroBlockSizes<P>
 where
     P: Producer,

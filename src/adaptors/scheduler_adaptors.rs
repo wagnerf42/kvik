@@ -17,6 +17,11 @@ macro_rules! scheduler_adaptor {
                 self.base.size_hint()
             }
         }
+        impl<I: DoubleEndedIterator> DoubleEndedIterator for $type<I> {
+            fn next_back(&mut self) -> Option<Self::Item> {
+                self.base.next_back()
+            }
+        }
 
         impl<P: Producer> Divisible for $type<P> {
             type Controlled = P::Controlled;

@@ -106,6 +106,20 @@ where
     }
 }
 
+impl<A, B> DoubleEndedIterator for ZipProducer<A, B>
+where
+    A: DoubleEndedIterator,
+    B: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if let Some(next_a) = self.a.next_back() {
+            self.b.next_back().map(|next_b| (next_a, next_b))
+        } else {
+            None
+        }
+    }
+}
+
 impl<A, B> Divisible for ZipProducer<A, B>
 where
     A: Producer,

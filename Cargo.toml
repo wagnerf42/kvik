@@ -10,6 +10,7 @@ logs = ["rayon_logs"]
 nightly = []
 
 [dependencies]
+replace_with="*"
 rayon="*"
 crossbeam="*"
 rayon_logs={optional=true, git="https://github.com/wagnerf42/rayon-logs"}

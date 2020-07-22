@@ -71,6 +71,16 @@ where
     }
 }
 
+impl<'f, R, I, F> DoubleEndedIterator for MapProducer<'f, I, F>
+where
+    I: DoubleEndedIterator,
+    F: Fn(I::Item) -> R,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back().map(self.op)
+    }
+}
+
 fn map_fold<T, B, Acc>(f: impl Fn(T) -> B, g: impl Fn(Acc, B) -> Acc) -> impl Fn(Acc, T) -> Acc {
     move |acc, elt| g(acc, f(elt))
 }

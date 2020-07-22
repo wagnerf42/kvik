@@ -16,6 +16,7 @@ use crate::adaptors::{
     merge::Merge,
     microblocks::MicroBlockSizes,
     rayon_policy::Rayon,
+    rev::Rev,
     scheduler_adaptors::{Adaptive, DepJoin, Sequential},
     size_limit::SizeLimit,
     zip::Zip,
@@ -101,7 +102,7 @@ pub trait ProducerCallback<T> {
         P: Producer<Item = T>;
 }
 
-pub trait Producer: Send + Iterator + Divisible {
+pub trait Producer: Send + DoubleEndedIterator + Divisible {
     fn sizes(&self) -> (usize, Option<usize>);
     fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
     where
@@ -157,6 +158,10 @@ pub trait ParallelIterator: Sized {
             base: self,
             reset_counter: limit,
         }
+    }
+    /// Return a parallel iterator working in reversed order.
+    fn rev(self) -> Rev<Self> {
+        Rev { base: self }
     }
     /// Turn back into a sequential iterator.
     /// Must be called just before the final reduction.

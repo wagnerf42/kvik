@@ -146,6 +146,16 @@ mod tests {
             .reduce(|| (0..1), |left, _| left);
     }
     #[test]
+    fn rev_test() {
+        let r = (0..3u32)
+            .into_par_iter()
+            .rev()
+            .fold(String::new, |s, e| s + &e.to_string())
+            .reduce(String::new, |a, b| a + &b);
+        assert_eq!(r, "210")
+    }
+
+    #[test]
     fn all_test() {
         const PROBLEM_SIZE1: u64 = 1000;
         assert!(!(0u64..PROBLEM_SIZE1)

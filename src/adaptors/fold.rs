@@ -97,6 +97,19 @@ where
     }
 }
 
+impl<'f, T, I, ID, F> DoubleEndedIterator for FoldProducer<'f, T, I, ID, F>
+where
+    I: DoubleEndedIterator,
+    F: Fn(T, I::Item) -> T,
+    ID: Fn() -> T,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base
+            .take()
+            .map(|b| b.rfold(self.init.take().unwrap_or_else(self.id), self.fold))
+    }
+}
+
 impl<'f, T, I, ID, F> Divisible for FoldProducer<'f, T, I, ID, F>
 where
     I: Producer,

@@ -89,6 +89,15 @@ where
     }
 }
 
+impl<'l, I> DoubleEndedIterator for CapProducer<'l, I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.as_mut().and_then(|b| b.next_back())
+    }
+}
+
 impl<'l, I> Divisible for CapProducer<'l, I>
 where
     I: Producer,

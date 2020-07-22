@@ -15,6 +15,15 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for EvenLevelsProducer<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<I> Divisible for EvenLevelsProducer<I>
 where
     I: Divisible,

@@ -18,6 +18,15 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for SizeLimitProducer<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<I> Divisible for SizeLimitProducer<I>
 where
     I: Producer,

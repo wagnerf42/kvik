@@ -16,6 +16,12 @@ impl<I: Iterator, S> Iterator for ByBlocks<I, S> {
     }
 }
 
+impl<I: DoubleEndedIterator, S> DoubleEndedIterator for ByBlocks<I, S> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<P: Producer, S: Clone> Divisible for ByBlocks<P, S> {
     type Controlled = P::Controlled;
     fn should_be_divided(&self) -> bool {

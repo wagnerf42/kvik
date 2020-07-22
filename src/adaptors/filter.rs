@@ -79,6 +79,21 @@ where
     }
 }
 
+impl<'f, I, F> DoubleEndedIterator for FilterProducer<'f, I, F>
+where
+    I: DoubleEndedIterator,
+    F: Fn(&I::Item) -> bool,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some(elem) = self.base.next_back() {
+            if (self.filter)(&elem) {
+                return Some(elem);
+            }
+        }
+        None
+    }
+}
+
 impl<'f, I, F> Divisible for FilterProducer<'f, I, F>
 where
     I: Producer,

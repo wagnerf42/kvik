@@ -21,6 +21,15 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for ForceDepth<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<P> Divisible for ForceDepth<P>
 where
     P: Producer,

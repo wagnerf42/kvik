@@ -42,6 +42,12 @@ impl<D> Iterator for WrapProducer<D> {
     }
 }
 
+impl<D> DoubleEndedIterator for WrapProducer<D> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.content.take()
+    }
+}
+
 impl<D> Divisible for WrapProducer<D>
 where
     D: Divisible,

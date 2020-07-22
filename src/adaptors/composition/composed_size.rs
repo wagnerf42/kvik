@@ -96,6 +96,16 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for ComposedSizeProducer<I>
+where
+    I: DoubleEndedIterator,
+{
+    //TODO: rfold on all of these
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<I> Divisible for ComposedSizeProducer<I>
 where
     I: Producer,
