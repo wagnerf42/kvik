@@ -266,7 +266,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
             b_index: 0,
             out: output,
             out_index: 0,
-            size_cap: 1_000_00,
+            size_cap: 1_000_000,
         };
         merger
             .into_par_iter()
