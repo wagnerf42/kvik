@@ -1,8 +1,9 @@
 - try reduce benchmark
 - remove default scheduler method and default drive
 - panic on with_producer if we can only be a consumer
-- clippy
+- have one single file for all the easy adaptors (one parametrized class)
 - are we are going to have a problem with current reducer:
     ---> if we flat_map and inside the second level we have an adaptive sched
     then the reducer needs to do a partial fold
     ---> I guess we need the partial_fold to be inside the reducer
+- use replace_with more

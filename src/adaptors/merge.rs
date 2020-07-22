@@ -110,6 +110,29 @@ where
     }
 }
 
+impl<A, B> DoubleEndedIterator for MergeProducer<A, B>
+where
+    A: Producer,
+    A::Item: Ord,
+    B: Producer<Item = A::Item>,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let a_is_empty = self.a.length() == 0;
+        let b_is_empty = self.b.length() == 0;
+        if !a_is_empty && !b_is_empty {
+            if self.a.preview(self.a.length() - 1) <= self.b.preview(self.b.length() - 1) {
+                self.a.next_back()
+            } else {
+                self.b.next_back()
+            }
+        } else if a_is_empty {
+            self.b.next_back()
+        } else {
+            self.a.next_back()
+        }
+    }
+}
+
 fn cut_around_middle<T, P>(sorted_producer: P) -> (P, P)
 where
     T: Ord,

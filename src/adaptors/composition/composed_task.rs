@@ -93,6 +93,15 @@ where
     }
 }
 
+impl<'a, I> DoubleEndedIterator for ComposedTaskProducer<'a, I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<'a, I> Divisible for ComposedTaskProducer<'a, I>
 where
     I: Producer,

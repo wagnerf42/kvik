@@ -71,6 +71,12 @@ impl<I: Iterator> Iterator for RayonProducer<I> {
     // TODO: should we also do try_fold ?
 }
 
+impl<I: DoubleEndedIterator> DoubleEndedIterator for RayonProducer<I> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<I: Divisible> Divisible for RayonProducer<I> {
     type Controlled = I::Controlled;
     fn should_be_divided(&self) -> bool {

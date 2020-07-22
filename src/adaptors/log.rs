@@ -87,6 +87,16 @@ where
 }
 
 #[cfg(feature = "logs")]
+impl<I> DoubleEndedIterator for LogProducer<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
+#[cfg(feature = "logs")]
 impl<I> Divisible for LogProducer<I>
 where
     I: Producer,

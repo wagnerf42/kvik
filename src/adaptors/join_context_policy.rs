@@ -17,6 +17,15 @@ where
     }
 }
 
+impl<I> DoubleEndedIterator for JoinContextPolicyProducer<I>
+where
+    I: DoubleEndedIterator,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.base.next_back()
+    }
+}
+
 impl<I> Divisible for JoinContextPolicyProducer<I>
 where
     I: Producer,

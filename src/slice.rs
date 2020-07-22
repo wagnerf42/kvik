@@ -20,78 +20,43 @@ impl<'a, T: 'a + Sync> ParallelIterator for Iter<'a, T> {
     where
         CB: ProducerCallback<Self::Item>,
     {
-        callback.call(IterProducer {
-            slice: self.slice,
-            index: 0,
-        })
+        callback.call(self.slice.iter())
     }
 }
 
-struct IterProducer<'a, T: 'a> {
-    slice: &'a [T],
-    index: usize,
-}
-
-impl<'a, T: 'a> Iterator for IterProducer<'a, T> {
-    type Item = &'a T;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.slice.len() <= self.index {
-            None
-        } else {
-            let index = self.index;
-            self.index += 1;
-            Some(&self.slice[index])
-        }
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.slice.len() - self.index;
-        (len, Some(len))
-    }
-}
-
-impl<'a, T: 'a + Sync> Divisible for IterProducer<'a, T> {
+impl<'a, T: 'a + Sync> Divisible for std::slice::Iter<'a, T> {
     type Controlled = True;
     fn should_be_divided(&self) -> bool {
-        self.slice.len() - self.index >= 2
+        self.len() >= 2
     }
     fn divide(self) -> (Self, Self) {
-        let mid = (self.slice.len() - self.index) / 2;
+        let mid = self.len() / 2;
         self.divide_at(mid)
     }
-    fn divide_at(self, mut index: usize) -> (Self, Self) {
-        let remaining_len = self.slice[self.index..].len();
-        if index > remaining_len {
-            index = remaining_len
-        }
-        let (left, right) = self.slice[self.index..].split_at(index);
-        (
-            IterProducer {
-                slice: left,
-                index: 0,
-            },
-            IterProducer {
-                slice: right,
-                index: 0,
-            },
-        )
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let slice = self.as_slice();
+        let index = index.min(slice.len());
+        let (left, right) = slice.split_at(index);
+        (left.iter(), right.iter())
     }
 }
 
-impl<'a, T: 'a + Sync> Producer for IterProducer<'a, T> {
+impl<'a, T: 'a + Sync> Producer for std::slice::Iter<'a, T> {
     fn sizes(&self) -> (usize, Option<usize>) {
         self.size_hint()
     }
     fn preview(&self, index: usize) -> Self::Item {
-        &self.slice[self.index + index]
+        &self.as_slice()[index]
     }
     fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
     where
         B: Send,
         F: Fn(B, Self::Item) -> B,
     {
-        let (left, right) = self.slice[self.index..].split_at(limit);
-        self.slice = right;
-        self.index = 0;
+        let slice = self.as_slice();
+        let limit = limit.min(slice.len());
+        let (left, right) = slice.split_at(limit);
+        *self = right.iter();
         left.iter().fold(init, fold_op)
     }
 }
@@ -134,7 +99,6 @@ impl<'a, T: 'a + Sync> Divisible for std::slice::IterMut<'a, T> {
         self.divide_at(mid)
     }
     fn divide_at(self, mut index: usize) -> (Self, Self) {
-        //TODO: can we use the same nifty trick on Iter ?
         let slice = self.into_slice();
         let len = slice.len();
         if index > len {
@@ -152,21 +116,15 @@ impl<'a, T: 'a + Send + Sync> Producer for std::slice::IterMut<'a, T> {
     fn preview(&self, _index: usize) -> Self::Item {
         panic!("mutable slices are not peekable");
     }
-    fn partial_fold<B, F>(&mut self, mut init: B, fold_op: F, mut limit: usize) -> B
+    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
     where
         B: Send,
         F: Fn(B, Self::Item) -> B,
     {
-        //TODO(@wagnerf42) this needs to be sped up using some unsafe pointer stuff?
-
-        while limit > 0 {
-            if let Some(sorted_elem) = self.next() {
-                init = fold_op(init, sorted_elem);
-                limit -= 1;
-            } else {
-                break;
-            }
-        }
-        init
+        replace_with::replace_with_or_abort_and_return(self, |s| {
+            let slice = s.into_slice();
+            let (left, right) = slice.split_at_mut(limit);
+            (left.iter_mut().fold(init, fold_op), right.iter_mut())
+        })
     }
 }

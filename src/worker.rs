@@ -57,6 +57,27 @@ where
     }
 }
 
+impl<'f, S, C, W> DoubleEndedIterator for WorkerProducer<'f, S, C, W>
+where
+    S: Send,
+    C: Fn(&S) -> bool + Sync,
+    W: Fn(&mut S, usize) + Sync,
+{
+    // One-shot iterator
+    // If the iterator is finished, yield the state, else finish the work and yield the state
+    // This always consumes the internal state
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.state.as_ref().map_or(false, self.completed) {
+            self.state.take()
+        } else {
+            self.state.take().map(|mut s| {
+                (self.work)(&mut s, usize::MAX);
+                s
+            })
+        }
+    }
+}
+
 impl<'f, S, C, W> Divisible for WorkerProducer<'f, S, C, W>
 where
     S: Divisible + Send,

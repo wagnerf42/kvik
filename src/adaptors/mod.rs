@@ -13,6 +13,7 @@ pub(crate) mod map;
 pub(crate) mod merge;
 pub(crate) mod microblocks;
 pub(crate) mod rayon_policy;
+pub(crate) mod rev;
 pub(crate) mod scheduler_adaptors;
 pub(crate) mod size_limit;
 pub(crate) mod zip;
