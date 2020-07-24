@@ -55,7 +55,7 @@ fn max_sum_par(slice: &[i32]) -> i32 {
         .map(|s| (s, max_sum_seq(s)))
         .rayon(4)
         .reduce_with(|(left, left_sum), (right, right_sum)| {
-            let (left_mid, right_mid) = rayon_logs::join(
+            let (left_mid, right_mid) = rayon::join(
                 || par_iter_sum(left.par_iter().rev()),
                 || par_iter_sum(right.par_iter()),
             );
@@ -75,11 +75,11 @@ fn main() {
         .take(100_000)
         .collect();
     // println!("input: {:?}", input);
-    let pool = rayon_logs::ThreadPoolBuilder::new()
+    let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)
         .build()
         .unwrap();
-    let (sum, log) = pool.logging_install(|| max_sum_par(&input));
+    let sum = pool.install(|| max_sum_par(&input));
     assert_eq!(sum, max_sum_seq(&input));
-    log.save_svg("max_sum.svg").unwrap();
+    // log.save_svg("max_sum.svg").unwrap();
 }
