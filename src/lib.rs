@@ -191,17 +191,4 @@ mod tests {
             500 * 501
         );
     }
-
-    #[test]
-    fn work_with_output_test() {
-        const PROBLEM_SIZE: u64 = 1001;
-        let inp: Vec<u64> = (1u64..PROBLEM_SIZE).collect();
-        assert_eq!(
-            inp.into_par_iter()
-                .map(|&elem| elem)
-                .filter(|elem| elem % 2 == 0)
-                .reduce(|| 0, |l, r| l + r),
-            500 * 501
-        );
-    }
 }
