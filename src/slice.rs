@@ -128,3 +128,18 @@ impl<'a, T: 'a + Send + Sync> Producer for std::slice::IterMut<'a, T> {
         })
     }
 }
+
+impl<'a, T: 'a> Divisible for &'a [T] {
+    type Controlled = True;
+    fn should_be_divided(&self) -> bool {
+        self.len() >= 2
+    }
+    fn divide(self) -> (Self, Self) {
+        let mid = self.len() / 2;
+        self.split_at(mid)
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let index = index.min(self.len());
+        self.split_at(index)
+    }
+}
