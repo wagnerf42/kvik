@@ -407,6 +407,20 @@ pub trait TryReducible: ParallelIterator {
             .try_reduce(|| (), |_, _| Ok(()))
             .is_ok()
     }
+    fn find_first<P>(self, predicate: P) -> Option<Self::Item>
+    where
+        Self: ParallelIterator<Controlled = True>,
+        P: Fn(&Self::Item) -> bool + Sync + Send,
+    {
+        if let Err(elem) = self
+            .map(|e| if predicate(&e) { Err(e) } else { Ok(()) })
+            .try_reduce(|| (), |_, _| Ok(()))
+        {
+            Some(elem)
+        } else {
+            None
+        }
+    }
     fn all_adaptive<P>(self, predicate: P) -> bool
     where
         Self: ParallelIterator<Controlled = True>,
