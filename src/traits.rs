@@ -477,12 +477,16 @@ pub trait EnumerableParallelIterator: ParallelIterator {
 }
 
 pub trait PreviewableParallelIterator: ParallelIterator {
-    fn merge<I>(self, other: I) -> Merge<Self, I>
+    fn merge<I, J>(self, other: J) -> Merge<Self, I>
     where
         I: PreviewableParallelIterator<Item = Self::Item>,
+        J: IntoParallelIterator<Item = Self::Item, Iter = I>,
         Self::Item: Ord,
     {
-        Merge { a: self, b: other }
+        Merge {
+            a: self,
+            b: other.into_par_iter(),
+        }
     }
 }
 

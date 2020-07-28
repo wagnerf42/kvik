@@ -16,25 +16,21 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
     unsafe {
         buffer.set_len(input_len);
     }
-    (input.iter_mut(), buffer.iter_mut())
+    (input, buffer.as_mut_slice())
         .wrap_iter()
-        .map(|s| {
+        .map(|(inp, out)| {
             #[cfg(feature = "logs")]
             {
-                subgraph("sequential sort", s.0.len(), || {
-                    let left_slice = s.0.into_slice();
-                    let right_slice = s.1.into_slice();
-                    left_slice.sort();
-                    (left_slice, right_slice)
+                subgraph("sequential sort", inp.len(), || {
+                    inp.sort();
+                    (inp, out)
                 })
             }
 
             #[cfg(not(feature = "logs"))]
             {
-                let left_slice = s.0.into_slice();
-                let right_slice = s.1.into_slice();
-                left_slice.sort();
-                (left_slice, right_slice)
+                inp.sort();
+                (inp, out)
             }
         })
         .join_context_policy(std::cmp::min(
@@ -49,10 +45,10 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
             #[cfg(feature = "logs")]
             {
                 subgraph("parallel fusion", new_output.len(), || {
-                    let left = &left_input[..];
-                    let right = &right_input[..];
-                    left.into_par_iter()
-                        .merge(right.into_par_iter())
+                    left_input
+                        .as_ref()
+                        .into_par_iter()
+                        .merge(right_input.as_ref())
                         .zip(&mut new_output[..])
                         .adaptive() // we still need it because zip cannot relay info
                         .for_each(|(inp, out)| {
@@ -62,10 +58,9 @@ pub fn iter_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
             }
             #[cfg(not(feature = "logs"))]
             {
-                let left = &left_input[..];
-                let right = &right_input[..];
-                left.into_par_iter()
-                    .merge(right.into_par_iter())
+                (left_input.as_ref())
+                    .into_par_iter()
+                    .merge(right_input.as_ref())
                     .zip(&mut new_output[..])
                     .adaptive()
                     .for_each(|(inp, out)| {

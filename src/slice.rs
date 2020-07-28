@@ -143,3 +143,18 @@ impl<'a, T: 'a> Divisible for &'a [T] {
         self.split_at(index)
     }
 }
+
+impl<'a, T: 'a> Divisible for &'a mut [T] {
+    type Controlled = True;
+    fn should_be_divided(&self) -> bool {
+        self.len() >= 2
+    }
+    fn divide(self) -> (Self, Self) {
+        let mid = self.len() / 2;
+        self.split_at_mut(mid)
+    }
+    fn divide_at(self, index: usize) -> (Self, Self) {
+        let index = index.min(self.len());
+        self.split_at_mut(index)
+    }
+}

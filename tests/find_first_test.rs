@@ -40,7 +40,7 @@ fn test_dne() {
         .num_threads(4)
         .build()
         .expect("Thread pool build failed");
-    for size in (1..7) {
+    for size in 1..7 {
         let input = (0..size).collect::<Vec<_>>();
         tp.install(|| {
             assert!(input
