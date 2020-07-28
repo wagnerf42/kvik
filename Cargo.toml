@@ -10,6 +10,7 @@ logs = ["rayon_logs"]
 nightly = []
 
 [dependencies]
+itertools="*"
 replace_with="*"
 rayon="*"
 crossbeam="*"
@@ -37,8 +38,11 @@ name="all"
 harness=false
 
 [[bench]]
+name="maximum_subarray"
+harness=false
+
+[[bench]]
 name="find_first"
 harness=false
 [dev_dependencies]
 criterion="*"
-itertools="*"

@@ -5,6 +5,7 @@ extern crate rayon_logs as rayon;
 mod adaptors;
 mod algorithms;
 mod schedulers;
+mod str;
 mod try_fold;
 mod worker;
 pub use algorithms::iter_sort::iter_par_sort;
