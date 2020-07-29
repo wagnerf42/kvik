@@ -1,11 +1,11 @@
 #[macro_use]
 extern crate criterion;
+extern crate kvik;
 extern crate rand;
 extern crate rayon;
-extern crate kvik;
 
-use rand::prelude::*;
 use kvik::prelude::*;
+use rand::prelude::*;
 
 use criterion::{Criterion, ParameterizedBenchmark};
 use std::time::Duration;
@@ -40,10 +40,10 @@ fn ffirst_bench(c: &mut Criterion) {
                         tp.install(|| {
                             assert!(input
                                 .par_iter()
+                                .rayon((*nthreads as f64).log2() as usize)
                                 .by_blocks(std::iter::successors(Some(16usize), |s| Some(
                                     s.saturating_mul(2)
                                 )))
-                                .rayon(*nthreads)
                                 .find_first(|elem| **elem == INPUT_SIZE / 2)
                                 .is_some());
                         });
@@ -67,10 +67,10 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
+                            .rayon((*nthreads as f64).log2() as usize)
                             .by_blocks(std::iter::successors(Some(16usize), |s| Some(
                                 s.saturating_add(s / 2)
                             )))
-                            .rayon(*nthreads)
                             .find_first(|elem| **elem == INPUT_SIZE / 2)
                             .is_some());
                     });
@@ -92,7 +92,7 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
-                            .rayon(*nthreads)
+                            .rayon((*nthreads as f64).log2() as usize)
                             .find_first(|elem| **elem == INPUT_SIZE / 2)
                             .is_some());
                     });
