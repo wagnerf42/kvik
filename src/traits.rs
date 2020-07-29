@@ -15,6 +15,7 @@ use crate::adaptors::{
     map::Map,
     merge::Merge,
     microblocks::MicroBlockSizes,
+    next::Next,
     rayon_policy::Rayon,
     rev::Rev,
     scheduler_adaptors::{Adaptive, DepJoin, Sequential},
@@ -324,6 +325,21 @@ pub trait ParallelIterator: Sized {
         Filter { base: self, filter }
     }
 
+    // returns an iterator on the first element in the iterator (no kidding).
+    // this will cancel tasks to the right of the element.
+    // it is useful for find_first.
+    fn next(self) -> Next<Self> {
+        Next { base: self }
+    }
+
+    // This is without blocks.
+    fn find_first<P: Fn(&Self::Item) -> bool + Send + Sync>(
+        self,
+        predicate: P,
+    ) -> Option<Self::Item> {
+        self.filter(predicate).next().reduce_with(|a, _| a)
+    }
+
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
     where
         F: Fn(T, Self::Item) -> T + Sync + Send,
@@ -406,20 +422,6 @@ pub trait TryReducible: ParallelIterator {
         self.map(|e| if predicate(e) { Ok(()) } else { Err(()) })
             .try_reduce(|| (), |_, _| Ok(()))
             .is_ok()
-    }
-    fn find_first<P>(self, predicate: P) -> Option<Self::Item>
-    where
-        Self: ParallelIterator<Controlled = True>,
-        P: Fn(&Self::Item) -> bool + Sync + Send,
-    {
-        if let Err(elem) = self
-            .map(|e| if predicate(&e) { Err(e) } else { Ok(()) })
-            .try_reduce(|| (), |_, _| Ok(()))
-        {
-            Some(elem)
-        } else {
-            None
-        }
     }
     fn all_adaptive<P>(self, predicate: P) -> bool
     where

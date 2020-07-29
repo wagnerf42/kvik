@@ -45,11 +45,13 @@ fn ffirst_bench(c: &mut Criterion) {
                         tp.install(|| {
                             assert!(input
                                 .par_iter()
+                                .filter(|&e| *e == INPUT_SIZE / 2)
+                                .next()
                                 .by_blocks(std::iter::successors(Some(*nthreads), |s| Some(
                                     s.saturating_mul(2)
                                 )))
-                                .rayon(log(*nthreads as f64))
-                                .find_first(|elem| **elem == INPUT_SIZE / 2)
+                                .rayon(log(*nthreads))
+                                .reduce_with(|a, _| a)
                                 .is_some());
                         });
                     },
@@ -72,11 +74,13 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
+                            .filter(|&e| *e == INPUT_SIZE / 2)
+                            .next()
                             .by_blocks(std::iter::successors(Some(*nthreads), |s| Some(
                                 s.saturating_add(s / 2)
                             )))
-                            .rayon(log(*nthreads as f64))
-                            .find_first(|elem| **elem == INPUT_SIZE / 2)
+                            .rayon(log(*nthreads))
+                            .reduce_with(|a, _| a)
                             .is_some());
                     });
                 },
@@ -97,7 +101,7 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
-                            .rayon(log(*nthreads as f64))
+                            .rayon(log(*nthreads))
                             .find_first(|elem| **elem == INPUT_SIZE / 2)
                             .is_some());
                     });

@@ -12,6 +12,7 @@ pub(crate) mod log;
 pub(crate) mod map;
 pub(crate) mod merge;
 pub(crate) mod microblocks;
+pub(crate) mod next;
 pub(crate) mod rayon_policy;
 pub(crate) mod rev;
 pub(crate) mod scheduler_adaptors;

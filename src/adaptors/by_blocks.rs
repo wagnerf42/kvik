@@ -107,20 +107,27 @@ impl<Item, C: Consumer<Item>, S: Iterator<Item = usize> + Clone + Send + Sync> C
             .expect("no sizes left in by_blocks");
         // let's get a sequential iterator of producers of increasing sizes
         let producers = sizes.scan(Some(producer), |p, s| {
-            let remaining_producer = p.take().unwrap();
-            let (_, upper_bound) = remaining_producer.size_hint();
-            let capped_size = if let Some(bound) = upper_bound {
-                if bound == 0 {
-                    return None;
+            if let Some(remaining_producer) = p.take() {
+                if remaining_producer.should_be_divided() {
+                    let (_, upper_bound) = remaining_producer.size_hint();
+                    let capped_size = if let Some(bound) = upper_bound {
+                        if bound == 0 {
+                            return None;
+                        } else {
+                            s.min(bound)
+                        }
+                    } else {
+                        s
+                    };
+                    let (left, right) = remaining_producer.divide_at(capped_size);
+                    *p = Some(right);
+                    Some(left)
                 } else {
-                    s.min(bound)
+                    Some(remaining_producer)
                 }
             } else {
-                s
-            };
-            let (left, right) = remaining_producer.divide_at(capped_size);
-            *p = Some(right);
-            Some(left)
+                None
+            }
         });
         self.base
             .clone()
