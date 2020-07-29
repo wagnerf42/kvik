@@ -258,7 +258,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
     right: &mut [T],
     output: &mut [T],
 ) {
-    if rayon::current_num_threads() >= 56 {
+    if rayon::current_num_threads() >= 60 {
         let merger = Merger {
             a: left,
             b: right,
@@ -280,7 +280,7 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
             b_index: 0,
             out: output,
             out_index: 0,
-            size_cap: 2,
+            size_cap: 6,
         };
         merger
             .into_par_iter()
