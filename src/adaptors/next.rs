@@ -18,6 +18,7 @@ impl<I: Iterator> Iterator for NextProducer<I> {
     type Item = I::Item;
     fn next(&mut self) -> Option<Self::Item> {
         if self.stop.load(Ordering::Relaxed) {
+            self.next_stop.store(true, Ordering::Relaxed);
             None
         } else {
             let n = self.base.next();
@@ -33,6 +34,7 @@ impl<I: Iterator> Iterator for NextProducer<I> {
 impl<I: DoubleEndedIterator> DoubleEndedIterator for NextProducer<I> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.stop.load(Ordering::Relaxed) {
+            self.next_stop.store(true, Ordering::Relaxed);
             None
         } else {
             let n = self.base.next_back();
@@ -47,7 +49,7 @@ impl<I: DoubleEndedIterator> DoubleEndedIterator for NextProducer<I> {
 impl<D: Divisible> Divisible for NextProducer<D> {
     type Controlled = D::Controlled;
     fn should_be_divided(&self) -> bool {
-        if self.next_stop.load(Ordering::Relaxed) {
+        if self.stop.load(Ordering::Relaxed) {
             self.next_stop.store(true, Ordering::Relaxed);
             false
         } else {
@@ -90,7 +92,8 @@ impl<D: Divisible> Divisible for NextProducer<D> {
 
 impl<P: Producer> Producer for NextProducer<P> {
     fn sizes(&self) -> (usize, Option<usize>) {
-        if self.stop.load(Ordering::SeqCst) {
+        if self.stop.load(Ordering::Relaxed) {
+            self.next_stop.store(true, Ordering::Relaxed)
             (0, Some(0))
         } else {
             self.base.sizes()
