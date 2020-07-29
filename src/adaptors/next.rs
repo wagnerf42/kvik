@@ -93,7 +93,7 @@ impl<D: Divisible> Divisible for NextProducer<D> {
 impl<P: Producer> Producer for NextProducer<P> {
     fn sizes(&self) -> (usize, Option<usize>) {
         if self.stop.load(Ordering::Relaxed) {
-            self.next_stop.store(true, Ordering::Relaxed)
+            self.next_stop.store(true, Ordering::Relaxed);
             (0, Some(0))
         } else {
             self.base.sizes()
