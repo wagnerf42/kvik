@@ -19,6 +19,11 @@ fn random_vec(size: usize) -> Vec<usize> {
     input
 }
 
+// return rayon's initial counter for a given number of threads
+fn log(t: usize) -> usize {
+    (t as f64).log2().ceil() as usize + 1
+}
+
 fn ffirst_bench(c: &mut Criterion) {
     let num_threads: Vec<_> = (1..33).map(|elem| elem * 2_usize).collect();
     c.bench(
@@ -40,8 +45,8 @@ fn ffirst_bench(c: &mut Criterion) {
                         tp.install(|| {
                             assert!(input
                                 .par_iter()
-                                .rayon((*nthreads as f64).log2() as usize)
-                                .by_blocks(std::iter::successors(Some(16usize), |s| Some(
+                                .rayon(log(*nthreads as f64))
+                                .by_blocks(std::iter::successors(Some(*nthreads), |s| Some(
                                     s.saturating_mul(2)
                                 )))
                                 .find_first(|elem| **elem == INPUT_SIZE / 2)
@@ -67,8 +72,8 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
-                            .rayon((*nthreads as f64).log2() as usize)
-                            .by_blocks(std::iter::successors(Some(16usize), |s| Some(
+                            .rayon(log(*nthreads as f64))
+                            .by_blocks(std::iter::successors(Some(*nthreads), |s| Some(
                                 s.saturating_add(s / 2)
                             )))
                             .find_first(|elem| **elem == INPUT_SIZE / 2)
@@ -92,7 +97,7 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
-                            .rayon((*nthreads as f64).log2() as usize)
+                            .rayon(log(*nthreads as f64))
                             .find_first(|elem| **elem == INPUT_SIZE / 2)
                             .is_some());
                     });
