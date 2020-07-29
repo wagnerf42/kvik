@@ -46,3 +46,4 @@ name="find_first"
 harness=false
 [dev_dependencies]
 criterion="*"
+lipsum="^0.7"
