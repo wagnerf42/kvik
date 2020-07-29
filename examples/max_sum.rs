@@ -39,7 +39,6 @@ fn par_iter_sum<'a, I: ParallelIterator<Item = &'a i32>>(iter: I) -> i32 {
             (new_sum, new_sum.max(current_max))
         },
     )
-    .adaptive()
     .reduce(
         || (0, 0),
         |(left_sum, left_max), (right_sum, right_max)| {
@@ -69,10 +68,21 @@ fn max_sum_par(slice: &[i32]) -> i32 {
         .unwrap_or(0)
 }
 
+fn kadane(slice: &[i32]) -> i32 {
+    slice
+        .iter()
+        .scan(0, |current_sum, e| {
+            *current_sum = 0.max(*current_sum + *e);
+            Some(*current_sum)
+        })
+        .max()
+        .unwrap_or(0)
+}
+
 fn main() {
     let input: Vec<i32> = std::iter::repeat_with(rand::random::<i32>)
         .map(|e| e % 10)
-        .take(100_000)
+        .take(100_000_000)
         .collect();
     // println!("input: {:?}", input);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -81,5 +91,11 @@ fn main() {
         .unwrap();
     let sum = pool.install(|| max_sum_par(&input));
     assert_eq!(sum, max_sum_seq(&input));
+    let start = std::time::Instant::now();
+    assert_eq!(sum, max_sum_seq(&input));
+    println!("dc: {:?}", start.elapsed());
+    let start = std::time::Instant::now();
+    assert_eq!(sum, kadane(&input));
+    println!("kadane: {:?}", start.elapsed());
     // log.save_svg("max_sum.svg").unwrap();
 }
