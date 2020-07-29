@@ -1,5 +1,5 @@
 use lipsum::lipsum;
-use rayon_try_fold::prelude::*;
+use kvik::prelude::*;
 
 // like replace but in place.
 // it's a bit dirty.

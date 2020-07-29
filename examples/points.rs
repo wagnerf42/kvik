@@ -6,7 +6,7 @@ struct Point {
 
 // #[cfg(feature = "logs")]
 // fn compute_closest_logged(points: &Vec<Point>) -> f64 {
-//     use rayon_try_fold::prelude::*;
+//     use kvik::prelude::*;
 //
 //     let len = points.len();
 //     let enumeration = 0..len as u64;
@@ -30,7 +30,7 @@ struct Point {
 
 // #[cfg(feature = "logs")]
 // fn compute_closest_rayon(points: &Vec<Point>) -> f64 {
-//     use rayon_try_fold::prelude::*;
+//     use kvik::prelude::*;
 //
 //     let len = points.len();
 //     let enumeration = 0..len as u64;
@@ -94,7 +94,7 @@ fn main() {
     }
 
     fn compute_closest_composed(points: &Vec<Point>) -> f64 {
-        use rayon_try_fold::prelude::*;
+        use kvik::prelude::*;
 
         let len = points.len();
         let enumeration = 0..len as u64;

@@ -4,9 +4,9 @@ extern crate criterion;
 extern crate itertools;
 extern crate rand;
 extern crate rayon;
-extern crate rayon_try_fold;
+extern crate kvik;
 
-use rayon_try_fold::prelude::*;
+use kvik::prelude::*;
 
 use criterion::{Criterion, ParameterizedBenchmark};
 use std::time::Duration;

@@ -1,4 +1,4 @@
-use rayon_try_fold::prelude::*;
+use kvik::prelude::*;
 #[derive(Copy, Clone, Debug)]
 struct OpaqueTuple {
     first: u64,

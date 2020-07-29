@@ -1,5 +1,5 @@
 [package]
-name = "rayon_try_fold"
+name = "kvik"
 version = "0.1.0"
 authors = ["frederic wagner <frederic.wagner@imag.fr>"]
 edition = "2018"

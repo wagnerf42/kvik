@@ -31,7 +31,7 @@ fn main() {
     //    }
     //
     //    fn composed(vec: &Vec<Vec<u64>>) -> usize {
-    //        use rayon_try_fold::prelude::*;
+    //        use kvik::prelude::*;
     //
     //        let threads = rayon::current_num_threads();
     //        let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
@@ -54,7 +54,7 @@ fn main() {
     //    }
     //
     //    fn composed_counter(vec: &Vec<Vec<u64>>) -> usize {
-    //        use rayon_try_fold::prelude::*;
+    //        use kvik::prelude::*;
     //
     //        let threads = rayon::current_num_threads();
     //        let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
@@ -77,7 +77,7 @@ fn main() {
     //    }
 
     fn composed_task(vec: &Vec<Vec<u64>>) -> usize {
-        use rayon_try_fold::prelude::*;
+        use kvik::prelude::*;
 
         let threads = rayon::current_num_threads();
         let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
@@ -100,7 +100,7 @@ fn main() {
     }
 
     //    fn rayon_both(vec: &Vec<Vec<u64>>) -> usize {
-    //        use rayon_try_fold::prelude::*;
+    //        use kvik::prelude::*;
     //
     //        let threads = rayon::current_num_threads();
     //        let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
@@ -120,7 +120,7 @@ fn main() {
     //    }
 
     fn rayon_outer(vec: &Vec<Vec<u64>>) -> usize {
-        use rayon_try_fold::prelude::*;
+        use kvik::prelude::*;
 
         let threads = rayon::current_num_threads();
         let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
@@ -137,7 +137,7 @@ fn main() {
     }
 
     //    fn rayon_outer_sum(vec: &Vec<Vec<u64>>) -> usize {
-    //        use rayon_try_fold::prelude::*;
+    //        use kvik::prelude::*;
     //
     //        let threads = rayon::current_num_threads();
     //        let limit = (((threads as f64).log(2.0).ceil()) as usize) + 1;
@@ -153,7 +153,7 @@ fn main() {
     //            .reduce(|| 0, |a, b| a + b)
     //    }
     fn composed_size(vec: &Vec<Vec<u64>>) -> usize {
-        use rayon_try_fold::prelude::*;
+        use kvik::prelude::*;
 
         let threads = rayon::current_num_threads();
 

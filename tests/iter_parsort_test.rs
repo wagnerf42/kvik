@@ -1,7 +1,7 @@
 use rand::random;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
-use rayon_try_fold::iter_par_sort;
+use kvik::iter_par_sort;
 
 #[derive(Copy, Clone, Debug)]
 struct OpaqueTuple {

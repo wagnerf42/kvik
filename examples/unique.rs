@@ -8,7 +8,7 @@
 //! maybe it IS bad for the ones who know sizes because
 //! they spread data in memory for nothing.
 use itertools::Itertools;
-use rayon_try_fold::prelude::*;
+use kvik::prelude::*;
 use std::collections::HashSet;
 
 fn unique(input: &[u32]) -> Option<HashSet<&u32>> {

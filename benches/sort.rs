@@ -3,11 +3,11 @@ extern crate criterion;
 extern crate itertools;
 extern crate rand;
 extern crate rayon;
-extern crate rayon_try_fold;
+extern crate kvik;
 
 use rand::prelude::*;
 use rayon::prelude::*;
-use rayon_try_fold::{iter_par_sort, slice_par_sort};
+use kvik::{iter_par_sort, slice_par_sort};
 use std::time::Duration;
 
 use criterion::{Criterion, ParameterizedBenchmark};

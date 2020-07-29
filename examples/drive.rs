@@ -3,7 +3,7 @@
 #[cfg(feature = "logs")]
 fn main() {
     use rayon_logs::ThreadPoolBuilder;
-    use rayon_try_fold::prelude::*;
+    use kvik::prelude::*;
     let pool = ThreadPoolBuilder::new()
         .build()
         .expect("failed building pool");

@@ -52,7 +52,7 @@ pub trait Divisible: Sized {
     /// Cut divisible recursively into smaller pieces forming a ParallelIterator.
     /// # Example:
     /// ```
-    /// use rayon_try_fold::prelude::*;
+    /// use kvik::prelude::*;
     /// let r = (0u64..10);
     /// //TODO : write sum and all parallel ranges (to get .len)
     /// let length = r.wrap_iter().map(|p| p.end-p.start).reduce(||0, |a,b|a+b);
@@ -297,7 +297,7 @@ pub trait ParallelIterator: Sized {
     /// flat_map
     /// # Example:
     /// ```
-    /// use rayon_try_fold::prelude::*;
+    /// use kvik::prelude::*;
     ///        assert_eq!(
     ///            (0u64..100)
     ///                .into_par_iter()
@@ -459,7 +459,7 @@ pub trait EnumerableParallelIterator: ParallelIterator {
     /// Example:
     ///
     /// ```
-    /// use rayon_try_fold::prelude::*;
+    /// use kvik::prelude::*;
     /// let mut v = vec![0; 5];
     /// v.par_iter_mut().zip(0..5).for_each(|(r, i)| *r = i);
     /// assert_eq!(v, vec![0, 1, 2, 3, 4])

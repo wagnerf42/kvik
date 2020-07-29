@@ -1,7 +1,7 @@
 use rand::prelude::*;
 use rand::random;
 use rayon::prelude::*;
-use rayon_try_fold::adaptive_slice_merge;
+use kvik::adaptive_slice_merge;
 
 #[derive(Copy, Clone, Debug)]
 struct OpaqueTuple {

@@ -10,7 +10,7 @@ fn main() {
     #[cfg(feature = "logs")]
     {
         use rand::prelude::*;
-        use rayon_try_fold::slice_par_sort;
+        use kvik::slice_par_sort;
         let problem_size: u32 = args[1].parse().unwrap();
         let num_threads: usize = args[2].parse().unwrap();
         let thread_pool = rayon_logs::ThreadPoolBuilder::new()

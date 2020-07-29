@@ -2,7 +2,7 @@
 extern crate criterion;
 extern crate rand;
 extern crate rayon;
-extern crate rayon_try_fold;
+extern crate kvik;
 
 use criterion::{Criterion, ParameterizedBenchmark};
 use rand::Rng;
@@ -33,7 +33,7 @@ fn create_random_points(size: usize) -> Vec<Point> {
 }
 
 fn all_composed(points: &Vec<Point>, tp: &ThreadPool) -> f64 {
-    use rayon_try_fold::prelude::*;
+    use kvik::prelude::*;
 
     let len = points.len();
     let enumeration = 0..len as u64;
@@ -63,7 +63,7 @@ fn all_composed(points: &Vec<Point>, tp: &ThreadPool) -> f64 {
 }
 
 fn rayon_outer(points: &Vec<Point>, tp: &ThreadPool) -> f64 {
-    use rayon_try_fold::prelude::*;
+    use kvik::prelude::*;
 
     let len = points.len();
     let enumeration = 0..len as u64;
@@ -90,7 +90,7 @@ fn rayon_outer(points: &Vec<Point>, tp: &ThreadPool) -> f64 {
 }
 
 fn rayon_both(points: &Vec<Point>, tp: &ThreadPool) -> f64 {
-    use rayon_try_fold::prelude::*;
+    use kvik::prelude::*;
 
     let len = points.len();
     let enumeration = 0..len as u64;

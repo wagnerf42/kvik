@@ -1,5 +1,5 @@
 use rand::prelude::*;
-use rayon_try_fold::prelude::*;
+use kvik::prelude::*;
 
 fn fuse_slices<'a: 'c, 'b: 'c, 'c, T: 'a + 'b>(s1: &'a [T], s2: &'b [T]) -> &'c [T] {
     let ptr1 = s1.as_ptr();

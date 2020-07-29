@@ -3,12 +3,12 @@ extern crate criterion;
 extern crate itertools;
 extern crate rand;
 extern crate rayon;
-extern crate rayon_try_fold;
+extern crate kvik;
 
 // TODO: we should show the whole distribution of times and not the average time
 
 use rand::prelude::*;
-use rayon_try_fold::prelude::*;
+use kvik::prelude::*;
 
 use criterion::{Criterion, ParameterizedBenchmark};
 use std::time::Duration;

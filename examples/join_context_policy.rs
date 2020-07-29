@@ -2,7 +2,7 @@ fn main() {
     #[cfg(feature = "logs")]
     {
         use rayon_logs::ThreadPoolBuilder;
-        use rayon_try_fold::prelude::*;
+        use kvik::prelude::*;
         const PROBLEM_SIZE: u64 = 1_000_000;
         let inp: Vec<_> = (0u64..PROBLEM_SIZE).collect();
         let tp = ThreadPoolBuilder::new()

@@ -9,7 +9,7 @@ const SIZE: u32 = 10_000_000;
 fn main() {
     #[cfg(not(feature = "logs"))]
     {
-        use rayon_try_fold::adaptive_slice_merge;
+        use kvik::adaptive_slice_merge;
         let mut rng = rand::thread_rng();
         let mut input = (0..SIZE / 5)
             .cycle()
@@ -26,8 +26,8 @@ fn main() {
     }
     #[cfg(feature = "logs")]
     {
-        use rayon_try_fold::prelude::ParallelIterator;
-        use rayon_try_fold::{prelude::IntoParallelIterator, Merger};
+        use kvik::prelude::ParallelIterator;
+        use kvik::{prelude::IntoParallelIterator, Merger};
         let mut rng = rand::thread_rng();
         let mut input = (0..SIZE).collect::<Vec<_>>();
         input.shuffle(&mut rng);
