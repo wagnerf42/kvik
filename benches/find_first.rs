@@ -45,10 +45,10 @@ fn ffirst_bench(c: &mut Criterion) {
                         tp.install(|| {
                             assert!(input
                                 .par_iter()
-                                .rayon(log(*nthreads as f64))
                                 .by_blocks(std::iter::successors(Some(*nthreads), |s| Some(
                                     s.saturating_mul(2)
                                 )))
+                                .rayon(log(*nthreads as f64))
                                 .find_first(|elem| **elem == INPUT_SIZE / 2)
                                 .is_some());
                         });
@@ -72,10 +72,10 @@ fn ffirst_bench(c: &mut Criterion) {
                     tp.install(|| {
                         assert!(input
                             .par_iter()
-                            .rayon(log(*nthreads as f64))
                             .by_blocks(std::iter::successors(Some(*nthreads), |s| Some(
                                 s.saturating_add(s / 2)
                             )))
+                            .rayon(log(*nthreads as f64))
                             .find_first(|elem| **elem == INPUT_SIZE / 2)
                             .is_some());
                     });
