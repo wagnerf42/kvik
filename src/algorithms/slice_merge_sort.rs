@@ -17,14 +17,14 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
     unsafe {
         buffer.set_len(input_len);
     }
-    (input.iter_mut(), buffer.iter_mut())
+    (input, buffer.as_mut_slice())
         .wrap_iter()
         .map(|s| {
             #[cfg(feature = "logs")]
             {
                 subgraph("sequential sort", s.0.len(), || {
-                    let left_slice = s.0.into_slice();
-                    let right_slice = s.1.into_slice();
+                    let left_slice = s.0;
+                    let right_slice = s.1;
                     left_slice.sort();
                     (left_slice, right_slice)
                 })
@@ -32,8 +32,8 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
 
             #[cfg(not(feature = "logs"))]
             {
-                let left_slice = s.0.into_slice();
-                let right_slice = s.1.into_slice();
+                let left_slice = s.0;
+                let right_slice = s.1;
                 left_slice.sort();
                 (left_slice, right_slice)
             }
