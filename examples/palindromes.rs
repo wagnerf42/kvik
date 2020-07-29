@@ -11,6 +11,7 @@ fn palindrome(s: &str) -> bool {
         .all(|(a, b)| a == b)
 }
 
+#[cfg(feature = "logs")]
 fn main() {
     let input: Vec<String> = lipsum::lipsum(SIZE)
         .split_whitespace()
@@ -51,4 +52,9 @@ fn main() {
         })
         .generate_logs("find.html")
         .unwrap();
+}
+
+#[cfg(not(feature = "logs"))]
+fn main() {
+    println!("you should run me with the logs feature");
 }
