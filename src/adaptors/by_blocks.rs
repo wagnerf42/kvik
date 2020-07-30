@@ -109,7 +109,7 @@ impl<Item, C: Consumer<Item>, S: Iterator<Item = usize> + Clone + Send + Sync> C
         let producers = sizes.scan(Some(producer), |p, s| {
             if let Some(remaining_producer) = p.take() {
                 if remaining_producer.should_be_divided() {
-                    let (_, upper_bound) = remaining_producer.size_hint();
+                    let (_, upper_bound) = remaining_producer.sizes();
                     let capped_size = if let Some(bound) = upper_bound {
                         if bound == 0 {
                             return None;
