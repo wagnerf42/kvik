@@ -17,7 +17,7 @@ struct NextProducer<'a, P> {
 
 impl<'a, P> NextProducer<'a, P> {
     fn done(&self) -> bool {
-        self.fake_range.start > self.found_at.load(Ordering::Relaxed)
+        self.fake_range.start >= self.found_at.load(Ordering::Relaxed)
     }
     fn found(&self) {
         self.found_at

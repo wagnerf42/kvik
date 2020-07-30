@@ -161,9 +161,9 @@ where
         B: Send,
         F: Fn(B, Self::Item) -> B,
     {
-        // rayon_logs::subgraph(self.name, self.size_hint().0, || {
-        self.base.partial_fold(init, fold_op, limit)
-        // })
+        rayon_logs::subgraph(self.name, limit, || {
+            self.base.partial_fold(init, fold_op, limit)
+        })
     }
     fn micro_block_sizes(&self) -> (usize, usize) {
         self.base.micro_block_sizes()

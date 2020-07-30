@@ -2,7 +2,7 @@ use itertools::Itertools;
 use kvik::prelude::*;
 
 const SIZE: usize = 100_000_000;
-const TARGET: usize = 26_000_000;
+const TARGET: usize = 25_000_000;
 
 #[cfg(feature = "logs")]
 fn main() {
@@ -34,6 +34,7 @@ fn main() {
                     .par_iter()
                     .filter(|&e| *e == TARGET)
                     .next()
+                    .log("filter")
                     .adaptive()
                     .reduce_with(|a, _| a),
                 res
@@ -45,6 +46,7 @@ fn main() {
                     .par_iter()
                     .filter(|&e| *e == TARGET)
                     .next()
+                    .log("filter")
                     .by_blocks(std::iter::successors(Some(4_000), |old| Some(2 * old)))
                     .rayon(2)
                     .reduce_with(|a, _| a),
