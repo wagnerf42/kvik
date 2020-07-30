@@ -86,6 +86,30 @@ fn ffirst_bench(c: &mut Criterion) {
                 },
             )
         })
+        .with_function("ffirst adaptive", |b, nthreads| {
+            b.iter_with_setup(
+                || {
+                    (
+                        random_vec(INPUT_SIZE),
+                        rayon::ThreadPoolBuilder::new()
+                            .num_threads(*nthreads)
+                            .build()
+                            .expect("Couldn't build thread pool"),
+                    )
+                },
+                |(input, tp)| {
+                    tp.install(|| {
+                        assert!(input
+                            .par_iter()
+                            .filter(|&e| *e == INPUT_SIZE / 2)
+                            .next()
+                            .adaptive()
+                            .reduce_with(|a, _| a)
+                            .is_some());
+                    });
+                },
+            )
+        })
         .with_function("ffirst without blocks", |b, nthreads| {
             b.iter_with_setup(
                 || {
