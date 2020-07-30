@@ -68,7 +68,13 @@ impl<I: Iterator> Iterator for RayonProducer<I> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.base.size_hint()
     }
-    // TODO: should we also do try_fold ?
+    fn fold<B, F>(self, init: B, f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.base.fold(init, f)
+    }
+    // TODO: we should also do try_fold
 }
 
 impl<I: DoubleEndedIterator> DoubleEndedIterator for RayonProducer<I> {

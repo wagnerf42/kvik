@@ -46,7 +46,7 @@ where
     fn sizes(&self) -> (usize, Option<usize>) {
         self.base.sizes()
     }
-    fn partial_fold<B, F>(&mut self, init: B, fold_op: F, limit: usize) -> B
+    fn partial_fold<B, F>(&mut self, _init: B, _fold_op: F, _limit: usize) -> B
     where
         B: Send,
         F: Fn(B, Self::Item) -> B,

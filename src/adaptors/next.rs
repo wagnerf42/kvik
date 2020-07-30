@@ -19,18 +19,28 @@ impl<'a, P> NextProducer<'a, P> {
     fn done(&self) -> bool {
         self.fake_range.start > self.found_at.load(Ordering::Relaxed)
     }
+    fn found(&self) {
+        self.found_at
+            .fetch_min(self.fake_range.start, Ordering::Relaxed);
+    }
 }
 
 impl<'a, I: Iterator> Iterator for NextProducer<'a, I> {
     type Item = I::Item;
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.done() {
+            (0, Some(0))
+        } else {
+            (0, Some(1))
+        }
+    }
     fn next(&mut self) -> Option<Self::Item> {
         if self.done() {
             None
         } else {
             let n = self.base.next();
             if n.is_some() {
-                self.found_at
-                    .fetch_min(self.fake_range.start, Ordering::Relaxed);
+                self.found()
             }
             n
         }
@@ -46,8 +56,7 @@ impl<'a, I: DoubleEndedIterator> DoubleEndedIterator for NextProducer<'a, I> {
         } else {
             let n = self.base.next_back();
             if n.is_some() {
-                self.found_at
-                    .fetch_min(self.fake_range.start, Ordering::Relaxed);
+                self.found()
             }
             n
         }
@@ -98,7 +107,8 @@ impl<'a, D: Divisible> Divisible for NextProducer<'a, D> {
     }
 }
 
-impl<'a, P: Producer> Producer for NextProducer<'a, P> {
+//TODO: for some reasons i don't understand items require Send
+impl<'a, I: Send, P: Producer<Item = I>> Producer for NextProducer<'a, P> {
     fn sizes(&self) -> (usize, Option<usize>) {
         if self.done() {
             (0, Some(0))
@@ -114,7 +124,20 @@ impl<'a, P: Producer> Producer for NextProducer<'a, P> {
         B: Send,
         F: Fn(B, Self::Item) -> B,
     {
-        panic!("no partial fold on Next for now")
+        if self.done() {
+            init
+        } else {
+            //TODO: would be better with a partial_try_fold
+            let r =
+                self.base
+                    .partial_fold(None, |a, b| if a.is_some() { a } else { Some(b) }, limit);
+            if let Some(r) = r {
+                self.found();
+                fold_op(init, r)
+            } else {
+                init
+            }
+        }
     }
 }
 
@@ -128,7 +151,7 @@ impl<C: Clone> Clone for Next<C> {
     }
 }
 
-impl<Item, C: Consumer<Item>> Consumer<Item> for Next<C> {
+impl<Item: Send, C: Consumer<Item>> Consumer<Item> for Next<C> {
     type Result = C::Result;
     type Reducer = C::Reducer;
     fn consume_producer<P>(self, producer: P) -> Self::Result
@@ -158,7 +181,7 @@ impl<I: ParallelIterator> ParallelIterator for Next<I> {
         let next_consumer = Next { base: consumer };
         self.base.drive(next_consumer)
     }
-    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    fn with_producer<CB>(self, _callback: CB) -> CB::Output
     where
         CB: ProducerCallback<Self::Item>,
     {

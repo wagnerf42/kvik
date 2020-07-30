@@ -65,7 +65,7 @@ struct LogProducer<I> {
 #[cfg(feature = "logs")]
 impl<I> Iterator for LogProducer<I>
 where
-    I: Iterator,
+    I: Producer,
 {
     type Item = I::Item;
 
@@ -82,14 +82,14 @@ where
         Self: Sized,
         F: FnMut(B, Self::Item) -> B,
     {
-        rayon_logs::subgraph(self.name, self.size_hint().0, || self.base.fold(init, f))
+        rayon_logs::subgraph(self.name, self.sizes().0, || self.base.fold(init, f))
     }
 }
 
 #[cfg(feature = "logs")]
 impl<I> DoubleEndedIterator for LogProducer<I>
 where
-    I: DoubleEndedIterator,
+    I: Producer,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.base.next_back()

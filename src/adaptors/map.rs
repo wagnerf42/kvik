@@ -57,6 +57,14 @@ pub(crate) struct MapProducer<'f, I, F> {
     pub(crate) op: &'f F,
 }
 
+//TODO: change traits to unify map_fold and map_fold1
+fn map_fold1<T, B, Acc>(
+    mut f: impl FnMut(T) -> B,
+    mut g: impl FnMut(Acc, B) -> Acc,
+) -> impl FnMut(Acc, T) -> Acc {
+    move |acc, elt| g(acc, f(elt))
+}
+
 impl<'f, R, I, F> Iterator for MapProducer<'f, I, F>
 where
     I: Iterator,
@@ -68,6 +76,12 @@ where
     }
     fn next(&mut self) -> Option<Self::Item> {
         self.base.next().map(self.op)
+    }
+    fn fold<Acc, G>(self, init: Acc, g: G) -> Acc
+    where
+        G: FnMut(Acc, Self::Item) -> Acc,
+    {
+        self.base.fold(init, map_fold1(self.op, g))
     }
 }
 
