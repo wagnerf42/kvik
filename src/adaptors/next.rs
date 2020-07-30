@@ -81,7 +81,7 @@ impl<'a, D: Divisible> Divisible for NextProducer<'a, D> {
     }
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
-        let (left_range, right_range) = self.fake_range.divide();
+        let (left_range, right_range) = self.fake_range.divide_at(index);
         let mid_stop = Arc::new(AtomicBool::new(false));
         (
             NextProducer {
