@@ -1,5 +1,6 @@
 use crate::prelude::*;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::ops::Range;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 pub struct Next<I> {
@@ -8,49 +9,55 @@ pub struct Next<I> {
 
 // producer
 
-struct NextProducer<P> {
+struct NextProducer<'a, P> {
     base: P,
-    stop: Arc<AtomicBool>,      // should i stop ?
-    next_stop: Arc<AtomicBool>, // should the next guy stop ?
+    fake_range: Range<usize>,
+    found_at: &'a AtomicUsize,
 }
 
-impl<I: Iterator> Iterator for NextProducer<I> {
+impl<'a, P> NextProducer<'a, P> {
+    fn done(&self) -> bool {
+        self.fake_range.start > self.found_at.load(Ordering::Relaxed)
+    }
+}
+
+impl<'a, I: Iterator> Iterator for NextProducer<'a, I> {
     type Item = I::Item;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.stop.load(Ordering::Relaxed) {
-            self.next_stop.store(true, Ordering::Relaxed);
+        if self.done() {
             None
         } else {
             let n = self.base.next();
             if n.is_some() {
-                self.next_stop.store(true, Ordering::Relaxed)
+                self.found_at
+                    .fetch_min(self.fake_range.start, Ordering::Relaxed);
             }
             n
         }
     }
     //TODO: can we really do fold here ?
+    //i guess we would need a partial_try_fold
 }
 
-impl<I: DoubleEndedIterator> DoubleEndedIterator for NextProducer<I> {
+impl<'a, I: DoubleEndedIterator> DoubleEndedIterator for NextProducer<'a, I> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.stop.load(Ordering::Relaxed) {
-            self.next_stop.store(true, Ordering::Relaxed);
+        if self.done() {
             None
         } else {
             let n = self.base.next_back();
             if n.is_some() {
-                self.next_stop.store(true, Ordering::Relaxed)
+                self.found_at
+                    .fetch_min(self.fake_range.start, Ordering::Relaxed);
             }
             n
         }
     }
 }
 
-impl<D: Divisible> Divisible for NextProducer<D> {
+impl<'a, D: Divisible> Divisible for NextProducer<'a, D> {
     type Controlled = D::Controlled;
     fn should_be_divided(&self) -> bool {
-        if self.stop.load(Ordering::Relaxed) {
-            self.next_stop.store(true, Ordering::Relaxed);
+        if self.done() {
             false
         } else {
             self.base.should_be_divided()
@@ -58,42 +65,42 @@ impl<D: Divisible> Divisible for NextProducer<D> {
     }
     fn divide(self) -> (Self, Self) {
         let (left, right) = self.base.divide();
-        let mid_stop = Arc::new(AtomicBool::new(false));
+        let (left_range, right_range) = self.fake_range.divide();
         (
             NextProducer {
                 base: left,
-                stop: self.stop,
-                next_stop: mid_stop.clone(),
+                fake_range: left_range,
+                found_at: self.found_at,
             },
             NextProducer {
                 base: right,
-                stop: mid_stop,
-                next_stop: self.next_stop,
+                fake_range: right_range,
+                found_at: self.found_at,
             },
         )
     }
     fn divide_at(self, index: usize) -> (Self, Self) {
         let (left, right) = self.base.divide_at(index);
+        let (left_range, right_range) = self.fake_range.divide();
         let mid_stop = Arc::new(AtomicBool::new(false));
         (
             NextProducer {
                 base: left,
-                stop: self.stop,
-                next_stop: mid_stop.clone(),
+                fake_range: left_range,
+                found_at: self.found_at,
             },
             NextProducer {
                 base: right,
-                stop: mid_stop,
-                next_stop: self.next_stop,
+                fake_range: right_range,
+                found_at: self.found_at,
             },
         )
     }
 }
 
-impl<P: Producer> Producer for NextProducer<P> {
+impl<'a, P: Producer> Producer for NextProducer<'a, P> {
     fn sizes(&self) -> (usize, Option<usize>) {
-        if self.stop.load(Ordering::Relaxed) {
-            self.next_stop.store(true, Ordering::Relaxed);
+        if self.done() {
             (0, Some(0))
         } else {
             self.base.sizes()
@@ -128,10 +135,11 @@ impl<Item, C: Consumer<Item>> Consumer<Item> for Next<C> {
     where
         P: Producer<Item = Item>,
     {
+        let found_at = AtomicUsize::new(std::usize::MAX);
         let next_producer = NextProducer {
             base: producer,
-            stop: Arc::new(AtomicBool::new(false)),
-            next_stop: Arc::new(AtomicBool::new(false)),
+            fake_range: 0..std::usize::MAX,
+            found_at: &found_at,
         };
         self.base.consume_producer(next_producer)
     }
