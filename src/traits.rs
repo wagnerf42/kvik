@@ -20,6 +20,7 @@ use crate::adaptors::{
     rev::Rev,
     scheduler_adaptors::{Adaptive, DepJoin, Sequential},
     size_limit::SizeLimit,
+    try_fold::TryFold,
     zip::Zip,
 };
 use crate::prelude::*;
@@ -338,6 +339,20 @@ pub trait ParallelIterator: Sized {
         predicate: P,
     ) -> Option<Self::Item> {
         self.filter(predicate).next().reduce_with(|a, _| a)
+    }
+
+    fn try_fold<T, R, ID, F>(self, identity: ID, fold_op: F) -> TryFold<Self, R, ID, F>
+    where
+        F: Fn(T, Self::Item) -> R + Sync + Send,
+        ID: Fn() -> T + Sync + Send,
+        R: Try<Ok = T> + Send,
+    {
+        TryFold {
+            base: self,
+            identity,
+            fold_op,
+            marker: Default::default(),
+        }
     }
 
     fn fold<T, ID, F>(self, identity: ID, fold_op: F) -> Fold<Self, ID, F>
