@@ -1,13 +1,13 @@
 #[cfg(feature = "logs")]
 extern crate rayon_logs as rayon;
+use kvik::iter_par_sort;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use kvik::iter_par_sort;
 
 const PROBLEM_SIZE: u32 = 1_000_000;
 fn main() {
     let tp = rayon::ThreadPoolBuilder::new()
-        .num_threads(4)
+        .num_threads(2)
         .build()
         .expect("Thread pool build failed");
     let mut input = (0..PROBLEM_SIZE).collect::<Vec<u32>>();
