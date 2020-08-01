@@ -169,18 +169,6 @@ mod tests {
             .all(|num| num.is_power_of_two()),);
     }
     #[test]
-    fn all_adaptive_test() {
-        const PROBLEM_SIZE1: u64 = 1000;
-        assert!(!(0u64..PROBLEM_SIZE1)
-            .into_par_iter()
-            .all_adaptive(|num| num.is_power_of_two()),);
-        const PROBLEM_SIZE2: u64 = 10;
-        assert!((0u64..PROBLEM_SIZE2)
-            .into_par_iter()
-            .map(|num| 2u64.pow(num as u32))
-            .all_adaptive(|num| num.is_power_of_two()),);
-    }
-    #[test]
     fn filter_test() {
         const PROBLEM_SIZE: u64 = 1001;
         let inp: Vec<u64> = (1u64..PROBLEM_SIZE).collect();

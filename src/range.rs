@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use crate::try_fold::try_fold;
+use crate::Try;
 
 pub struct Iter<T> {
     range: std::ops::Range<T>,
@@ -62,6 +64,16 @@ macro_rules! implement_traits {
             {
                 let next_limit = (self.start + limit as $x).min(self.end);
                 let output = (self.start..next_limit).fold(init, fold_op);
+                self.start = next_limit;
+                output
+            }
+            fn partial_try_fold<B, F, R>(&mut self, init: B, f: F, limit: usize) -> R
+            where
+                F: FnMut(B, Self::Item) -> R,
+                R: Try<Ok = B>,
+            {
+                let next_limit = (self.start + limit as $x).min(self.end);
+                let output = try_fold(&mut (self.start..next_limit), init, f);
                 self.start = next_limit;
                 output
             }

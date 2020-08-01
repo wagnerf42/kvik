@@ -1,4 +1,5 @@
 use crate::adaptors::{
+    all::All,
     bound_depth::BoundDepth,
     by_blocks::ByBlocks,
     cap::Cap,
@@ -441,19 +442,18 @@ pub trait TryReducible: ParallelIterator {
         Self: ParallelIterator<Controlled = True>,
         P: Fn(Self::Item) -> bool + Sync + Send,
     {
-        self.map(|e| if predicate(e) { Ok(()) } else { Err(()) })
-            .try_reduce(|| (), |_, _| Ok(()))
-            .is_ok()
-    }
-    fn all_adaptive<P>(self, predicate: P) -> bool
-    where
-        Self: ParallelIterator<Controlled = True>,
-        P: Fn(Self::Item) -> bool + Sync + Send,
-    {
-        self.map(|e| if predicate(e) { Ok(()) } else { Err(()) })
-            .adaptive()
-            .try_reduce(|| (), |_, _| Ok(()))
-            .is_ok()
+        let stop = AtomicBool::new(false);
+        let consumer = TryReduceConsumer {
+            op: &|_, _| Ok(()),
+            identity: &|| (),
+            stop: &stop,
+        };
+        let all_consumer = All {
+            base: consumer,
+            predicate: &predicate,
+            stop: &stop,
+        };
+        self.drive(all_consumer).is_ok()
     }
 }
 

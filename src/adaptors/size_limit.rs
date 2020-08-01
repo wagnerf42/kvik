@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::Try;
 
 struct SizeLimitProducer<I> {
     base: I,
@@ -89,6 +90,14 @@ where
     {
         self.base.partial_fold(init, fold_op, limit)
     }
+    fn partial_try_fold<B, F, R>(&mut self, init: B, f: F, limit: usize) -> R
+    where
+        F: FnMut(B, Self::Item) -> R,
+        R: Try<Ok = B>,
+    {
+        self.base.partial_try_fold(init, f, limit)
+    }
+
     fn micro_block_sizes(&self) -> (usize, usize) {
         self.base.micro_block_sizes()
     }
