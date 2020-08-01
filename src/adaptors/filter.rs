@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::Try;
 
 pub struct Filter<I, F> {
     pub(crate) base: I,
@@ -146,6 +147,19 @@ fn filter_fold<T, Acc>(
     }
 }
 
+fn filter_try_fold<'a, T, Acc, R: Try<Ok = Acc>>(
+    predicate: &'a mut impl FnMut(&T) -> bool,
+    mut fold: impl FnMut(Acc, T) -> R + 'a,
+) -> impl FnMut(Acc, T) -> R + 'a {
+    move |acc, item| {
+        if predicate(&item) {
+            fold(acc, item)
+        } else {
+            R::from_ok(acc)
+        }
+    }
+}
+
 impl<'f, I, F> Producer for FilterProducer<'f, I, F>
 where
     I: Producer,
@@ -173,6 +187,14 @@ where
         let filter_op = self.filter;
         self.base
             .partial_fold(init, filter_fold(filter_op, fold_op), limit)
+    }
+    fn partial_try_fold<B, G, R>(&mut self, init: B, f: G, limit: usize) -> R
+    where
+        G: FnMut(B, Self::Item) -> R,
+        R: Try<Ok = B>,
+    {
+        self.base
+            .partial_try_fold(init, filter_try_fold(&mut self.filter, f), limit)
     }
     fn micro_block_sizes(&self) -> (usize, usize) {
         self.base.micro_block_sizes()

@@ -1,4 +1,6 @@
 use crate::prelude::*;
+use crate::try_fold::try_fold;
+use crate::Try;
 
 pub struct Iter<'a, T: 'a> {
     slice: &'a [T],
@@ -58,6 +60,17 @@ impl<'a, T: 'a + Sync> Producer for std::slice::Iter<'a, T> {
         let (left, right) = slice.split_at(limit);
         *self = right.iter();
         left.iter().fold(init, fold_op)
+    }
+    fn partial_try_fold<B, F, R>(&mut self, init: B, f: F, limit: usize) -> R
+    where
+        F: FnMut(B, Self::Item) -> R,
+        R: Try<Ok = B>,
+    {
+        let slice = self.as_slice();
+        let limit = limit.min(slice.len());
+        let (left, right) = slice.split_at(limit);
+        *self = right.iter();
+        try_fold(&mut left.iter(), init, f)
     }
 }
 

@@ -110,6 +110,13 @@ pub trait Producer: Send + DoubleEndedIterator + Divisible {
     where
         B: Send,
         F: Fn(B, Self::Item) -> B;
+    fn partial_try_fold<B, F, R>(&mut self, init: B, f: F, limit: usize) -> R
+    where
+        F: FnMut(B, Self::Item) -> R,
+        R: Try<Ok = B>,
+    {
+        unimplemented!("not implemented for everyone yet")
+    }
     fn length(&self) -> usize {
         let (min, max) = self.sizes();
         if let Some(m) = max {
