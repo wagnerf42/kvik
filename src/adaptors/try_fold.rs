@@ -181,15 +181,35 @@ where
                 .unwrap_or((0, Some(0)))
         }
     }
-    /// same as in fold and worker, we don't use fold op here
     fn partial_fold<B, G>(&mut self, init: B, fold_op: G, limit: usize) -> B
     where
         B: Send,
         G: Fn(B, Self::Item) -> B,
     {
-        //TODO: abort on err
-        //TODO: it would be better with a partial_try_fold
-        unimplemented!()
+        // ok, so what do we want to do ?
+        // well, we want to partial try fold the base
+        // if we meet an error then we stop of course and fold_op
+        // else we put store back the new init
+        let local_init = self.init.take();
+        let local_fold_op = self.fold_op;
+        let maybe_res = self
+            .base
+            .as_mut()
+            .map(|base| base.partial_try_fold(local_init.unwrap(), local_fold_op, limit));
+        if let Some(res) = maybe_res {
+            match res.into_result() {
+                Ok(o) => {
+                    self.init = Some(o);
+                    init
+                }
+                Err(e) => {
+                    self.mark_done();
+                    return fold_op(init, R::from_error(e));
+                }
+            }
+        } else {
+            init
+        }
     }
     fn preview(&self, index: usize) -> Self::Item {
         panic!("you cannot preview TryFold")
