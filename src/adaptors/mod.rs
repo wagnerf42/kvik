@@ -17,5 +17,5 @@ pub(crate) mod rayon_policy;
 pub(crate) mod rev;
 pub(crate) mod scheduler_adaptors;
 pub(crate) mod size_limit;
-pub(crate) mod try_fold;
+//pub(crate) mod try_fold;
 pub(crate) mod zip;

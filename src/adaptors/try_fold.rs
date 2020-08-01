@@ -1,3 +1,6 @@
+//! this file is wrong and needs a conceptual
+//! rethinking.
+//! rayon has no producers for this type and for good reasons. :-(
 use crate::prelude::*;
 use crate::try_fold::try_fold;
 use crate::Try;
@@ -37,19 +40,9 @@ where
     ID: Fn() -> U + Sync + Send,
     R: Try<Ok = U> + Send,
 {
-    type Item = R;
+    type Item = U;
     fn next(&mut self) -> Option<Self::Item> {
-        self.base.take().map(|mut b| {
-            let res = try_fold(&mut b, self.init.take().unwrap(), self.fold_op);
-            let real_res = res.into_result();
-            match real_res {
-                Ok(o) => R::from_ok(o),
-                Err(e) => {
-                    self.mark_done();
-                    R::from_error(e)
-                }
-            }
-        })
+        panic!("no next on TryFoldProducers")
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         let iterations = if self.base.is_some() && !self.done() {
@@ -63,11 +56,7 @@ where
     where
         G: FnMut(B, Self::Item) -> B,
     {
-        if let Some(res) = self.next() {
-            f(init, res)
-        } else {
-            init
-        }
+        panic!("no fold for TryFoldProducer")
     }
 }
 
@@ -204,7 +193,7 @@ where
                 }
                 Err(e) => {
                     self.mark_done();
-                    return fold_op(init, R::from_error(e));
+                    panic!("no way to return the error")
                 }
             }
         } else {
@@ -240,7 +229,7 @@ impl<'b, Item, C, ID, F, R, U> Consumer<Item> for TryFoldConsumer<'b, C, ID, F>
 where
     Item: Send,
     U: Send,
-    C: Consumer<R>,
+    C: Consumer<U>,
     F: Fn(U, Item) -> R + Sync + Send,
     ID: Fn() -> U + Sync + Send,
     R: Try<Ok = U> + Send,
@@ -277,7 +266,7 @@ where
 {
     type Controlled = True;
     type Enumerable = False;
-    type Item = R;
+    type Item = U;
     fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
         let stop = AtomicBool::new(false);
         let try_fold_consumer = TryFoldConsumer {
