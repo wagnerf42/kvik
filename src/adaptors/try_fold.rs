@@ -215,3 +215,83 @@ where
         panic!("you cannot preview TryFold")
     }
 }
+
+// consumer
+
+struct TryFoldConsumer<'b, C, ID, F> {
+    base: C,
+    identity: &'b ID,
+    fold_op: &'b F,
+    stop: &'b AtomicBool,
+}
+
+impl<'b, C: Clone, ID, F> Clone for TryFoldConsumer<'b, C, ID, F> {
+    fn clone(&self) -> Self {
+        TryFoldConsumer {
+            base: self.base.clone(),
+            identity: self.identity,
+            fold_op: self.fold_op,
+            stop: self.stop,
+        }
+    }
+}
+
+impl<'b, Item, C, ID, F, R, U> Consumer<Item> for TryFoldConsumer<'b, C, ID, F>
+where
+    Item: Send,
+    U: Send,
+    C: Consumer<R>,
+    F: Fn(U, Item) -> R + Sync + Send,
+    ID: Fn() -> U + Sync + Send,
+    R: Try<Ok = U> + Send,
+{
+    type Result = C::Result;
+    type Reducer = C::Reducer;
+    fn consume_producer<P>(self, producer: P) -> Self::Result
+    where
+        P: Producer<Item = Item>,
+    {
+        let try_fold_producer = TryFoldProducer {
+            base: Some(producer),
+            init: Some((self.identity)()),
+            identity: self.identity,
+            fold_op: self.fold_op,
+            stop: self.stop,
+        };
+        self.base.consume_producer(try_fold_producer)
+    }
+    fn to_reducer(self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+// iterator
+
+impl<I, U, ID, F, R> ParallelIterator for TryFold<I, U, ID, F>
+where
+    U: Send,
+    I: ParallelIterator,
+    F: Fn(U, I::Item) -> R + Sync + Send,
+    ID: Fn() -> U + Sync + Send,
+    R: Try<Ok = U> + Send,
+{
+    type Controlled = True;
+    type Enumerable = False;
+    type Item = R;
+    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
+        let stop = AtomicBool::new(false);
+        let try_fold_consumer = TryFoldConsumer {
+            base: consumer,
+            identity: &self.identity,
+            fold_op: &self.fold_op,
+            stop: &stop,
+        };
+        self.base.drive(try_fold_consumer)
+    }
+    fn with_producer<CB>(self, callback: CB) -> CB::Output
+    where
+        CB: ProducerCallback<Self::Item>,
+    {
+        unimplemented!()
+    }
+}
