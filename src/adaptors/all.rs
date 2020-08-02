@@ -121,11 +121,17 @@ impl<'b, I: Producer, P: Fn(I::Item) -> bool + Send + Sync> Producer for All<'b,
             init
         } else {
             let predicate = self.predicate;
-            let r = self.base.partial_try_fold(
-                (),
-                |_, e| if (predicate)(e) { Ok(()) } else { Err(()) },
-                limit,
-            );
+            #[inline]
+            fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> Result<(), ()> {
+                move |(), x| {
+                    if f(x) {
+                        Ok(())
+                    } else {
+                        Err(())
+                    }
+                }
+            }
+            let r = self.base.partial_try_fold((), check(predicate), limit);
             match r {
                 Ok(_) => init,
                 Err(_) => {
