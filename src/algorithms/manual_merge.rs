@@ -253,13 +253,13 @@ impl<'a, T: Copy + std::cmp::Ord> Merger<'a, T> {
     }
 }
 
-pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
-    left: &mut [T],
-    right: &mut [T],
-    output: &mut [T],
-) {
+pub fn adaptive_slice_merge<'a, T: 'a + Copy + Ord + Send + Sync>(
+    left: &'a mut [T],
+    right: &'a mut [T],
+    output: &'a mut [T],
+) -> Merger<'a, T> {
     if rayon::current_num_threads() >= 60 {
-        let merger = Merger {
+        Merger {
             a: left,
             b: right,
             a_index: 0,
@@ -267,13 +267,13 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
             out: output,
             out_index: 0,
             size_cap: 1_000_000,
-        };
-        merger
-            .into_par_iter()
-            .micro_block_sizes(1024, 10_000)
-            .for_each(|_| ())
+        }
+    //merger
+    //    .into_par_iter()
+    //    .micro_block_sizes(1024, 10_000)
+    //    .for_each(|_| ())
     } else {
-        let merger = Merger {
+        Merger {
             a: left,
             b: right,
             a_index: 0,
@@ -281,11 +281,11 @@ pub fn adaptive_slice_merge<T: Copy + Ord + Send + Sync>(
             out: output,
             out_index: 0,
             size_cap: 6,
-        };
-        merger
-            .into_par_iter()
-            .micro_block_sizes(1024, 10_000)
-            .for_each(|_| ())
+        }
+        //merger
+        //    .into_par_iter()
+        //    .micro_block_sizes(1024, 10_000)
+        //    .for_each(|_| ())
     }
 }
 

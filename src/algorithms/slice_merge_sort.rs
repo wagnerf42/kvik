@@ -49,12 +49,18 @@ pub fn slice_par_sort<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
             #[cfg(feature = "logs")]
             {
                 subgraph("parallel fusion", new_output.len(), || {
-                    adaptive_slice_merge(left_input, right_input, new_output);
+                    adaptive_slice_merge(left_input, right_input, new_output)
+                        .into_par_iter()
+                        .micro_block_sizes(1024, 10_000)
+                        .for_each(|_| ());
                 });
             }
             #[cfg(not(feature = "logs"))]
             {
-                adaptive_slice_merge(left_input, right_input, new_output);
+                adaptive_slice_merge(left_input, right_input, new_output)
+                    .into_par_iter()
+                    .micro_block_sizes(1024, 10_000)
+                    .for_each(|_| ());
             }
             (new_output, fuse_slices(left_input, right_input))
         });

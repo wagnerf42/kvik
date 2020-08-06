@@ -8,7 +8,10 @@ mod schedulers;
 mod str;
 mod try_fold;
 mod worker;
-pub use algorithms::iter_sort::iter_par_sort;
+pub use algorithms::iter_sort::{
+    iter_sort_jc_adaptive, iter_sort_jc_rayon, iter_sort_rayon_adaptive, iter_sort_rayon_rayon,
+    iter_sort_size_adaptive, iter_sort_size_rayon,
+};
 pub use algorithms::manual_merge::{adaptive_slice_merge, Merger};
 pub use algorithms::slice_merge_sort::slice_par_sort;
 pub mod prelude;
