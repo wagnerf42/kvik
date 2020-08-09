@@ -122,19 +122,23 @@ impl<'b, I: Producer, P: Fn(I::Item) -> bool + Send + Sync> Producer for All<'b,
         } else {
             let predicate = self.predicate;
             #[inline]
-            fn check<T>(mut f: impl FnMut(T) -> bool) -> impl FnMut((), T) -> Result<(), ()> {
-                move |(), x| {
-                    if f(x) {
-                        Ok(())
+            fn check<T>(f: impl Fn(T) -> bool) -> impl Fn(Option<()>, T) -> Option<()> {
+                move |acc, x| {
+                    if acc.is_none() {
+                        acc
                     } else {
-                        Err(())
+                        if f(x) {
+                            Some(())
+                        } else {
+                            None
+                        }
                     }
                 }
             }
-            let r = self.base.partial_try_fold((), check(predicate), limit);
+            let r = self.base.partial_fold(Some(()), check(predicate), limit);
             match r {
-                Ok(_) => init,
-                Err(_) => {
+                Some(()) => init,
+                None => {
                     self.mark_done();
                     fold_op(init, Err(()))
                 }

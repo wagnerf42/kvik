@@ -127,23 +127,23 @@ impl<'a, I: Send, P: Producer<Item = I>> Producer for NextProducer<'a, P> {
         if self.done() {
             init
         } else {
-            // let r =
-            //     self.base
-            //         .partial_fold(None, |a, b| if a.is_some() { a } else { Some(b) }, limit);
-            // if let Some(r) = r {
-            //     self.found();
-            //     fold_op(init, r)
-            // } else {
-            //     init
-            // }
-            let r = self.base.partial_try_fold((), |_, e| Err(e), limit);
-            match r {
-                Ok(_) => init,
-                Err(e) => {
-                    self.found();
-                    fold_op(init, e)
-                }
+            let r =
+                self.base
+                    .partial_fold(None, |a, b| if a.is_some() { a } else { Some(b) }, limit);
+            if let Some(r) = r {
+                self.found();
+                fold_op(init, r)
+            } else {
+                init
             }
+            //let r = self.base.partial_try_fold((), |_, e| Err(e), limit);
+            //match r {
+            //    Ok(_) => init,
+            //    Err(e) => {
+            //        self.found();
+            //        fold_op(init, e)
+            //    }
+            //}
         }
     }
 }
