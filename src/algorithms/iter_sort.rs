@@ -71,7 +71,7 @@ pub fn iter_sort_jc_adaptive<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
         });
 }
 
-pub fn iter_sort_size_adaptive<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
+pub fn iter_sort_size_adaptive<T: Copy + Ord + Send + Sync>(input: &mut [T], num_threads: usize) {
     let input_len = input.len();
     let mut buffer: Vec<T> = Vec::with_capacity(input_len);
     unsafe {
@@ -94,7 +94,7 @@ pub fn iter_sort_size_adaptive<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                 (inp, out)
             }
         })
-        .size_limit(input_len / rayon::current_num_threads())
+        .size_limit(input_len / num_threads)
         .depjoin()
         .even_levels()
         .reduce_with(|(left_input, left_output), (right_input, right_output)| {
@@ -255,7 +255,7 @@ pub fn iter_sort_rayon_rayon<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
             (new_output, fuse_slices(left_input, right_input))
         });
 }
-pub fn iter_sort_size_rayon<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
+pub fn iter_sort_size_rayon<T: Copy + Ord + Send + Sync>(input: &mut [T], num_threads: usize) {
     let input_len = input.len();
     let mut buffer: Vec<T> = Vec::with_capacity(input_len);
     unsafe {
@@ -278,7 +278,7 @@ pub fn iter_sort_size_rayon<T: Copy + Ord + Send + Sync>(input: &mut [T]) {
                 (inp, out)
             }
         })
-        .size_limit(input_len / rayon::current_num_threads())
+        .size_limit(input_len / num_threads)
         .depjoin()
         .even_levels()
         .reduce_with(|(left_input, left_output), (right_input, right_output)| {
